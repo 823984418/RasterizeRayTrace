@@ -206,6 +206,7 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
     let c = dot(normalize(camera - position), normal);
     
     let pos = vec2<i32>(input.position.xy);
+    var color: vec3<f32> = modelInfo.emit.rgb + modelInfo.light.rgb;
     if (depthTest(pos, input.position.z)) {
         for (var i: i32 = 0; i < i32(traceCount); i++) {
             let targetI: vec4<f32> = cameraInfo.directionToArray[i];
@@ -218,20 +219,17 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
             }
             setFactor(pos, i, factor);
         }
-    }
-    
-    var color: vec3<f32> = modelInfo.emit.rgb + modelInfo.light.rgb;
-    for (var i = 0; i < i32(lightSampleCount); i++) {
-        let lightPosition = cameraInfo.lightArray[i];
-        if (lightPosition.w == 1) {
-            let lc = dot(normalize(lightPosition.xyz - input.worldPosition.xyz), normal);
-            if ((lc > 0) == (c > 0)) {
-                let light = getShadow(i, position);
-                color += light * modelInfo.diffuse.rgb * abs(lc) / PI / f32(lightSampleCount);
+        for (var i = 0; i < i32(lightSampleCount); i++) {
+            let lightPosition = cameraInfo.lightArray[i];
+            if (lightPosition.w == 1) {
+                let lc = dot(normalize(lightPosition.xyz - position), normal);
+                if ((lc > 0) == (c > 0)) {
+                    let light = getShadow(i, position);
+                    color += light * modelInfo.diffuse.rgb * abs(lc) / PI / f32(lightSampleCount);
+                }
             }
         }
     }
-    
     return FragmentOutput(vec4(color, 1.0), vec4<f32>(input.worldPosition, 1));
 }
 `;
@@ -299,7 +297,8 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
 @fragment
 fn fragment_main(input: FragmentInput) {
     let pos = vec2<i32>(input.position.xy);
-    if (needSubmit(pos, input.position.z)) {
+    let head = getHead(pos, input.position.z);
+    if (head != 0) {
         let normal: vec3<f32> = normalize(input.worldNormal);
         let c = dot(traceInfo.directionFrom.xyz, normal);
         let ct = dot(traceInfo.directionTo.xyz, normal);
@@ -320,7 +319,7 @@ fn fragment_main(input: FragmentInput) {
                 }
             }
         }
-        submit(pos, input.position.z, currentPosition, vec4(color, 1), vec4<f32>(factor, 1));
+        submit(head, input.position.z, currentPosition, vec4(color, 1), vec4<f32>(factor, 1));
     }
 }
 `;

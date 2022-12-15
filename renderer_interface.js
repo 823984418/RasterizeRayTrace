@@ -205,23 +205,20 @@ fn getShadow(light: i32, position: vec3<f32>) -> vec3<f32> {
     return textureSampleLevel(lightTexture, lightSampler, -direction, light, 0).rgb / div;
 }
 
-fn needSubmit(pos: vec2<i32>, depth: f32) -> bool {
+fn getHead(pos: vec2<i32>, depth: f32) -> u32 {
     if (depth < 0 || depth > 1) {
-        return false;
+        return 0;
     }
-    let u32Depth = u32(depth * f32(0xFFFFFFFF));
     let mappingIndex = pos.x + pos.y * i32(traceMappingSize);
-    let link: u32 = mappingBuffer[mappingIndex];
-    return link != 0;
+    return mappingBuffer[mappingIndex];
 }
 
-fn submit(pos: vec2<i32>, depth: f32, world: vec4<f32>, color: vec4<f32>, factor: vec4<f32>) {
+fn submit(head: u32, depth: f32, world: vec4<f32>, color: vec4<f32>, factor: vec4<f32>) {
     if (depth < 0 || depth > 1) {
         return;
     }
     let u32Depth = u32(depth * f32(0xFFFFFFFF));
-    let mappingIndex = pos.x + pos.y * i32(traceMappingSize);
-    var link: u32 = mappingBuffer[mappingIndex];
+    var link: u32 = head;
     while (link != 0) {
         let index: u32 = link - 1;
         let fr = vec2<i32>(i32(index % renderWidth), i32(index / renderWidth));

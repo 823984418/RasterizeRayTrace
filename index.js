@@ -42,7 +42,10 @@ function getArea(position) {
     return areaBuffer;
 }
 
-
+/**
+ *
+ * @type {HTMLCanvasElement}
+ */
 let canvas = document.querySelector("#targetCanvas");
 let gpu = navigator.gpu;
 let adapter = await gpu.requestAdapter({
@@ -70,13 +73,15 @@ adapter.requestAdapterInfo().then(info => {
 });
 
 let config = new RendererConfig();
+config.renderWidth = canvas.width;
+config.renderHeight = canvas.height;
 config.traceMappingSize = 1024;
 config.traceWordSize = 500;
 config.shadowTextureSize = 1024;
 config.lightTextureSize = 512;
-config.traceCount = 2;
+config.traceCount = 4;
 config.traceDepth = 4;
-config.lightSampleCount = 2;
+config.lightSampleCount = 1;
 config.shadowNearDistance = 10;
 config.shadowFarDistance = 500;
 config.traceDepthBias = 0.004;
@@ -149,7 +154,7 @@ let y = 0;
 function updateCamera() {
     renderer.renderIndex = 0;
     let eye = vec3.add([], [278, 273, 300], vec3.rotateY([], vec3.rotateX([], [0, 0, -1100], [0, 0, 0], y * 4), [0, 0, 0], -x * 4));
-    renderer.setCamera(eye, [278, 273, 300], [0, 1, 0], Math.PI * 0.22, 1, 500, 2000);
+    renderer.setCamera(eye, [278, 273, 300], [0, 1, 0], Math.PI * 0.22, canvas.width / canvas.height, 500, 2000);
     renderer.beginTime = renderer.lastTime = performance.now();
     renderer.render();
 }
@@ -187,11 +192,11 @@ async function readBuffer(device, buffer) {
 // console.log(b);
 
 
-canvas.onmousemove = event => {
-    x = event.clientX / canvas.clientWidth - 0.5;
-    y = event.clientY / canvas.clientHeight - 0.5;
+canvas.addEventListener("mousemove", event => {
+    x = event.offsetX / canvas.clientWidth - 0.5;
+    y = event.offsetY / canvas.clientHeight - 0.5;
     updateCamera();
-};
+});
 canvas.addEventListener("touchmove", event => {
     if (event.cancelable) {
         event.preventDefault();
