@@ -99,6 +99,10 @@ struct FragmentOutput {
     
     @location(1)
     position: vec4<f32>,
+    
+    @location(2)
+    lastPosition: vec4<f32>,
+    
 }
 
 `;

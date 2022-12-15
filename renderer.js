@@ -65,7 +65,7 @@ export class ShadowInfoStruct extends BufferStruct {
 
 export class CameraInfoStruct extends BufferStruct {
 
-    static WGSL = "struct CameraInfo {cameraPosition: vec4<f32>, viewProjection: mat4x4<f32>, directionToArray: array<vec4<f32>, traceCount>, lightArray: array<vec4<f32>, lightSampleCount>}";
+    static WGSL = "struct CameraInfo {cameraPosition: vec4<f32>, viewProjection: mat4x4<f32>, lastViewProjection: mat4x4<f32>, directionToArray: array<vec4<f32>, traceCount>, lightArray: array<vec4<f32>, lightSampleCount>}";
 
     constructor(config) {
         super();
@@ -74,6 +74,7 @@ export class CameraInfoStruct extends BufferStruct {
         this.setStruct([
             this.cameraPosition,
             this.viewProjection,
+            this.lastViewProjection,
             this.directionToArray,
             this.lightArray,
         ], 256);
@@ -81,6 +82,7 @@ export class CameraInfoStruct extends BufferStruct {
 
     cameraPosition = new BufferVec4F32();
     viewProjection = new BufferMat4x4F32();
+    lastViewProjection = new BufferMat4x4F32();
     /**
      * @type {BufferArray}
      */
@@ -314,7 +316,7 @@ var lastComposeColorTexture: texture_2d<f32>;
 var overlayColorTexture: texture_2d<f32>;
 
 @group(0) @binding(3)
-var cameraPosition: texture_2d<f32>;
+var lastPositionTexture: texture_2d<f32>;
 
 @group(0) @binding(4)
 var composeSampler: sampler;
@@ -331,17 +333,17 @@ fn vertex_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) v
 @fragment
 fn fragment_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let pos = vec2<i32>(position.xy);
-    var color = textureLoad(overlayColorTexture, pos, 0).rgb;
+    var color = pow(clamp(textureLoad(overlayColorTexture, pos, 0).rgb, vec3(0), vec3(1)), vec3(0.6));
+    var facing: f32 = 1;
     if (debug_taa) {
-        let worldPosition = textureLoad(cameraPosition, pos, 0);
-        if (worldPosition.w == 1) {
-            let lastPosition = composeInfo.lastCameraMatrix * worldPosition;
-            var pro = lastPosition.xyz / lastPosition.w;
-            pro.y = -pro.y;
-            if (pro.x > -1 && pro.x < 1 && pro.y > -1 && pro.y < 1 && pro.z > 0 && pro.z < 1) {
-                let lastDepth = textureSampleLevel(lastDepthTexture, composeSampler, pro.xy * 0.5 + 0.5, 0);
-                if (abs(lastDepth - pro.z) < taa_maxDeltaZ) {
-                    let lastComposeColor = textureSampleLevel(lastComposeColorTexture, composeSampler, pro.xy * 0.5 + 0.5, 0).rgb;
+        var lastPosition = textureLoad(lastPositionTexture, pos, 0);
+        lastPosition.y = -lastPosition.y;
+        facing = lastPosition.w;
+        if (lastPosition.x > -1 && lastPosition.x < 1 && lastPosition.y > -1 && lastPosition.y < 1 && lastPosition.z > 0 && lastPosition.z < 1) {
+            let lastDepth = textureSampleLevel(lastDepthTexture, composeSampler, lastPosition.xy * 0.5 + 0.5, 0);
+            if (abs(lastDepth - lastPosition.z) < taa_maxDeltaZ) {
+                let lastComposeColor: vec4<f32> = textureSampleLevel(lastComposeColorTexture, composeSampler, lastPosition.xy * 0.5 + 0.5, 0);
+                if ((lastComposeColor.w > 0) == (facing > 0)) {
                     color = color * (1 - taa_factor) + lastComposeColor.rgb * taa_factor;
                 }
             }
@@ -354,7 +356,7 @@ fn fragment_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f3
     
     
     // let ab = vec2<f32>(f32(composeInfo.renderIndex), 1) / f32(composeInfo.renderIndex + 1);
-    return vec4(color.rgb, 1);
+    return vec4(color.rgb, facing);
 }
 `;
 let RENDERER_DISPLAY_CODE = `// WGSL
@@ -372,7 +374,7 @@ fn vertex_main(@builtin(vertex_index) vertex_index : u32) -> @builtin(position) 
 fn fragment_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let pos = vec2<i32>(position.xy);
     let composeColor = textureLoad(composeColorTexture, pos, 0);
-    return vec4(pow(composeColor.rgb, vec3(0.6)), 1);
+    return vec4(composeColor.rgb, 1);
 }
 `;
 
@@ -446,6 +448,13 @@ ${RENDERER_DISPLAY_CODE}
         });
         this.cameraPositionTexture = device.createTexture({
             label: "cameraPositionTexture",
+            size: [config.renderWidth, config.renderHeight, 1],
+            dimension: "2d",
+            format: "rgba32float",
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+        this.cameraLastPositionTexture = device.createTexture({
+            label: "cameraLastPositionTexture",
             size: [config.renderWidth, config.renderHeight, 1],
             dimension: "2d",
             format: "rgba32float",
@@ -562,6 +571,10 @@ ${RENDERER_DISPLAY_CODE}
         }));
         this.cameraPositionTexture2DView = this.cameraPositionTexture.createView({
             label: "cameraPositionTexture2DView",
+            dimension: "2d",
+        });
+        this.cameraLastPositionTexture2DView = this.cameraLastPositionTexture.createView({
+            label: "cameraLastPositionTexture2DView",
             dimension: "2d",
         });
         this.cameraFactorTexture2DArrayView = this.cameraFactorTexture.createView({
@@ -1100,7 +1113,7 @@ ${RENDERER_DISPLAY_CODE}
                 resource: this.colorTexture2DViewArray[0],
             }, {
                 binding: 3,
-                resource: this.cameraPositionTexture2DView,
+                resource: this.cameraLastPositionTexture2DView,
             }, {
                 binding: 4,
                 resource: this.composeSampler,
@@ -1209,6 +1222,13 @@ ${RENDERER_DISPLAY_CODE}
      * @type {GPUTexture}
      */
     cameraPositionTexture;
+
+    /**
+     * 上一帧的位置
+     *
+     * @type {GPUTexture}
+     */
+    cameraLastPositionTexture;
 
     /**
      * 相机颜色系数纹理
@@ -1354,6 +1374,11 @@ ${RENDERER_DISPLAY_CODE}
      * @type {GPUTextureView}
      */
     cameraPositionTexture2DView;
+
+    /**
+     * @type {GPUTextureView}
+     */
+    cameraLastPositionTexture2DView;
 
     /**
      * `cameraFactorTexture` 的视图
@@ -1644,6 +1669,10 @@ ${RENDERER_DISPLAY_CODE}
                 view: this.cameraPositionTexture2DView,
                 loadOp: "clear",
                 storeOp: "store",
+            }, {
+                view: this.cameraLastPositionTexture2DView,
+                loadOp: "clear",
+                storeOp: "store",
             }],
             depthStencilAttachment: {
                 view: arrayCycleIndex(this.cameraDepthTexture2DViewArray, this.renderIndex),
@@ -1808,6 +1837,7 @@ ${RENDERER_DISPLAY_CODE}
         this.device.queue.writeBuffer(this.stateBuffer, 0, this.state.buffer);
         this.device.queue.submit([commandBuffer]);
         mat4.copy(this.state.composeInfo.lastCameraMatrix.buffer, this.state.cameraInfo.viewProjection.buffer);
+        mat4.copy(this.state.cameraInfo.lastViewProjection.buffer, this.state.cameraInfo.viewProjection.buffer);
 
         let time = performance.now();
         document.querySelector("#frameCount").innerText = `${this.renderIndex}`;

@@ -11,12 +11,13 @@ import {Model} from "./model.js";
 
 
 class StaticModelInfo extends BufferStruct {
-    static WGSL = "struct StaticModelInfo {model: mat4x4<f32>, normalModel: mat4x4<f32>, diffuse: vec4<f32>, emit: vec4<f32>}";
+    static WGSL = "struct StaticModelInfo {model: mat4x4<f32>, lastModel: mat4x4<f32>, normalModel: mat4x4<f32>, diffuse: vec4<f32>, emit: vec4<f32>}";
 
     constructor() {
         super();
         this.setStruct([
             this.model,
+            this.lastModel,
             this.normalModel,
             this.diffuse,
             this.emit,
@@ -25,6 +26,7 @@ class StaticModelInfo extends BufferStruct {
 
     buffer;
     model = new BufferMat4x4F32();
+    lastModel = new BufferMat4x4F32();
     normalModel = new BufferMat4x4F32();
     diffuse = new BufferVec4F32();
     emit = new BufferVec4F32();
@@ -100,17 +102,30 @@ struct VertexOutput {
     
     @location(1)
     worldNormal: vec3<f32>,
+    
+    @location(2)
+    @interpolate(linear)
+    lastPosition: vec3<f32>,
+    
 }
 
 struct FragmentInput {
     @builtin(position)
     position: vec4<f32>,
     
+    @builtin(front_facing)
+    facing: bool,
+    
     @location(0)
     worldPosition: vec3<f32>,
     
     @location(1)
     worldNormal: vec3<f32>,
+    
+    @location(2)
+    @interpolate(linear)
+    lastPosition: vec3<f32>,
+    
 }
 
 @vertex
@@ -118,7 +133,9 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
     let worldPosition: vec3<f32> = (modelInfo.model * vec4<f32>(input.position, 1)).xyz;
     let worldNormal: vec3<f32> = (modelInfo.normalModel * vec4<f32>(input.normal, 0)).xyz;
     let pos: vec4<f32> = cameraInfo.viewProjection * vec4<f32>(worldPosition, 1);
-    return VertexOutput(pos, worldPosition, normalize(worldNormal));
+    let lastWorldPosition: vec3<f32> = (modelInfo.lastModel * vec4<f32>(input.position, 1)).xyz;
+    let lastPos: vec4<f32> = cameraInfo.lastViewProjection * vec4<f32>(lastWorldPosition, 1);
+    return VertexOutput(pos, worldPosition, normalize(worldNormal), lastPos.xyz / lastPos.w);
 }
 
 @fragment
@@ -153,7 +170,7 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
             }
         }
     }
-    return FragmentOutput(vec4(color, 1.0), vec4<f32>(input.worldPosition, 1));
+    return FragmentOutput(vec4(color, 1.0), vec4<f32>(input.worldPosition, 1), vec4<f32>(input.lastPosition, f32(input.facing) * 2 - 1));
 }
 `;
 
@@ -383,6 +400,7 @@ ${STATIC_MODEL_TRACE_CODE}
                 targets: [
                     {format: "rgba32float"},
                     {format: "rgba32float"},
+                    {format: "rgba32float"},
                 ],
             },
             depthStencil: {
@@ -517,6 +535,7 @@ ${STATIC_MODEL_TRACE_CODE}
 
     prepare() {
         this.renderer.device.queue.writeBuffer(this.modelInfoBuffer, 0, this.modelInfo.buffer);
+        mat4.copy(this.modelInfo.lastModel.buffer, this.modelInfo.model.buffer);
     }
 
     shadowPass(pass) {

@@ -75,19 +75,19 @@ adapter.requestAdapterInfo().then(info => {
 let config = new RendererConfig();
 config.renderWidth = canvas.width;
 config.renderHeight = canvas.height;
-config.traceMappingSize = 800;
+config.traceMappingSize = 512;
 config.traceWordSize = 500;
 config.shadowTextureSize = 256;
 config.lightTextureSize = 128;
-config.traceCount = 8;
+config.traceCount = 32;
 config.traceDepth = 2;
-config.lightSampleCount = 4;
+config.lightSampleCount = 12;
 config.shadowNearDistance = 10;
 config.shadowFarDistance = 500;
 config.traceDepthBias = 0.005;
 config.shadowDepthBias = 0.005;
 config.debug_taa = true;
-config.taa_factor = 0.95;
+config.taa_factor = 0.91;
 config.taa_maxDeltaZ = 0.005;
 let renderer = new Renderer(device, config);
 
@@ -151,10 +151,10 @@ vec4.copy(model2.modelInfo.emit.buffer, [0, 0, 0, 1]);
 vec4.copy(model2.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
 renderer.models.push(model2);
 
-// let begin = performance.now();
-// renderer.onRenderListeners.push(() => {
-//     mat4.translate(model2.modelInfo.model.buffer, mat4.create(), [Math.sin((performance.now() - begin) * 0.01) * 100 + 50, 0, 0]);
-// });
+let begin = performance.now();
+renderer.onRenderListeners.push(() => {
+    mat4.translate(model2.modelInfo.model.buffer, mat4.create(), [Math.sin((performance.now() - begin) * 0.002) * 100 + 60, 0, 0]);
+});
 
 
 let x = 0;
@@ -167,7 +167,7 @@ function updateCamera() {
         renderer.beginTime = performance.now();
         renderer.renderIndex = 0;
     }
-    renderer.render();
+    // renderer.render();
 }
 
 updateCamera();
