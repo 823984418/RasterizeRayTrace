@@ -75,17 +75,20 @@ adapter.requestAdapterInfo().then(info => {
 let config = new RendererConfig();
 config.renderWidth = canvas.width;
 config.renderHeight = canvas.height;
-config.traceMappingSize = 1024;
+config.traceMappingSize = 800;
 config.traceWordSize = 500;
-config.shadowTextureSize = 1024;
-config.lightTextureSize = 512;
-config.traceCount = 4;
-config.traceDepth = 4;
-config.lightSampleCount = 1;
+config.shadowTextureSize = 256;
+config.lightTextureSize = 128;
+config.traceCount = 8;
+config.traceDepth = 2;
+config.lightSampleCount = 4;
 config.shadowNearDistance = 10;
 config.shadowFarDistance = 500;
-config.traceDepthBias = 0.004;
-config.shadowDepthBias = 0.001;
+config.traceDepthBias = 0.005;
+config.shadowDepthBias = 0.005;
+config.debug_taa = true;
+config.taa_factor = 0.95;
+config.taa_maxDeltaZ = 0.005;
 let renderer = new Renderer(device, config);
 
 vec3.copy(renderer.traceCenter, [278, 273, 300]);
@@ -148,20 +151,27 @@ vec4.copy(model2.modelInfo.emit.buffer, [0, 0, 0, 1]);
 vec4.copy(model2.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
 renderer.models.push(model2);
 
+// let begin = performance.now();
+// renderer.onRenderListeners.push(() => {
+//     mat4.translate(model2.modelInfo.model.buffer, mat4.create(), [Math.sin((performance.now() - begin) * 0.01) * 100 + 50, 0, 0]);
+// });
+
+
 let x = 0;
 let y = 0;
 
 function updateCamera() {
-    renderer.renderIndex = 0;
+    // renderer.renderIndex = 0;
     let eye = vec3.add([], [278, 273, 300], vec3.rotateY([], vec3.rotateX([], [0, 0, -1100], [0, 0, 0], y * 4), [0, 0, 0], -x * 4));
-    renderer.setCamera(eye, [278, 273, 300], [0, 1, 0], Math.PI * 0.22, canvas.width / canvas.height, 500, 2000);
-    renderer.beginTime = renderer.lastTime = performance.now();
+    renderer.setCamera(eye, [278, 273, 300], [0, 1, 0], Math.PI * 0.22, canvas.clientWidth / canvas.clientHeight, 500, 2000);
+    renderer.beginTime = performance.now();
     renderer.render();
 }
 
 updateCamera();
 
 renderer.begin();
+
 
 console.log(renderer);
 window.renderer = renderer;

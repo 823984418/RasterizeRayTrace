@@ -119,16 +119,19 @@ export class TraceInfoStruct extends BufferStruct {
 
 export class ComposeInfoStruct extends BufferStruct {
 
-    static WGSL = "struct ComposeInfo {renderIndex: u32}";
+    static WGSL = "struct ComposeInfo {lastCameraMatrix: mat4x4<f32>, renderIndex: u32}";
 
     constructor() {
         super();
         this.setStruct([
+            this.lastCameraMatrix,
             this.renderIndex,
         ], 256);
     }
 
+    lastCameraMatrix = new BufferMat4x4F32();
     renderIndex = new BufferUint32();
+
 }
 
 export class RendererInfoBufferStruct extends BufferStruct {
@@ -227,6 +230,9 @@ export class RendererConfig {
     traceDepthBias = 0;
     shadowDepthBias = 0;
     debug_clearCameraFactor = false;
+    debug_taa = false;
+    taa_factor = 0.98;
+    taa_maxDeltaZ = 0.01;
 
     toWGSL() {
         return `// WGSL
@@ -243,7 +249,11 @@ const shadowNearDistance: f32 = ${this.shadowNearDistance};
 const shadowFarDistance: f32 = ${this.shadowFarDistance};
 const traceDepthBias: f32 = ${this.traceDepthBias};
 const shadowDepthBias: f32 = ${this.shadowDepthBias};
+const debug_taa: bool = ${this.debug_taa};
+const taa_factor: f32 = ${this.taa_factor};
+const taa_maxDeltaZ: f32 = ${this.taa_maxDeltaZ};
 const PI: f32 = 3.1415916;
+
 `;
     }
 
@@ -303,6 +313,15 @@ var lastComposeColorTexture: texture_2d<f32>;
 @group(0) @binding(2)
 var overlayColorTexture: texture_2d<f32>;
 
+@group(0) @binding(3)
+var cameraPosition: texture_2d<f32>;
+
+@group(0) @binding(4)
+var composeSampler: sampler;
+
+@group(0) @binding(5)
+var lastDepthTexture: texture_depth_2d;
+
 @vertex
 fn vertex_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
     let pos = vec2<f32>(vec2<u32>((vertex_index % 3) & 1, (vertex_index % 3) >> 1));
@@ -312,11 +331,29 @@ fn vertex_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) v
 @fragment
 fn fragment_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let pos = vec2<i32>(position.xy);
-    let lastComposeColor = textureLoad(lastComposeColorTexture, pos, 0);
-    let overlayColor = textureLoad(overlayColorTexture, pos, 0);
-    let ab = vec2<f32>(f32(composeInfo.renderIndex), 1) / f32(composeInfo.renderIndex + 1);
-    let color = lastComposeColor * ab.x + overlayColor * ab.y;
-    // let color = lastComposeColor * 0.95 + overlayColor * 0.05;
+    var color = textureLoad(overlayColorTexture, pos, 0).rgb;
+    if (debug_taa) {
+        let worldPosition = textureLoad(cameraPosition, pos, 0);
+        if (worldPosition.w == 1) {
+            let lastPosition = composeInfo.lastCameraMatrix * worldPosition;
+            var pro = lastPosition.xyz / lastPosition.w;
+            pro.y = -pro.y;
+            if (pro.x > -1 && pro.x < 1 && pro.y > -1 && pro.y < 1 && pro.z > 0 && pro.z < 1) {
+                let lastDepth = textureSampleLevel(lastDepthTexture, composeSampler, pro.xy * 0.5 + 0.5, 0);
+                if (abs(lastDepth - pro.z) < taa_maxDeltaZ) {
+                    let lastComposeColor = textureSampleLevel(lastComposeColorTexture, composeSampler, pro.xy * 0.5 + 0.5, 0).rgb;
+                    color = color * (1 - taa_factor) + lastComposeColor.rgb * taa_factor;
+                }
+            }
+        }
+    } else {
+        let lastComposeColor = textureLoad(lastComposeColorTexture, pos, 0).rgb;
+        let ab = vec2<f32>(f32(composeInfo.renderIndex), 1) / f32(composeInfo.renderIndex + 1);
+        color = lastComposeColor * ab.x + color * ab.y;
+    }
+    
+    
+    // let ab = vec2<f32>(f32(composeInfo.renderIndex), 1) / f32(composeInfo.renderIndex + 1);
     return vec4(color.rgb, 1);
 }
 `;
@@ -402,7 +439,7 @@ ${RENDERER_DISPLAY_CODE}
         });
         this.cameraDepthTexture = device.createTexture({
             label: "cameraDepthTexture",
-            size: [config.renderWidth, config.renderHeight, 1],
+            size: [config.renderWidth, config.renderHeight, 2],
             dimension: "2d",
             format: "depth32float",
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
@@ -491,6 +528,11 @@ ${RENDERER_DISPLAY_CODE}
             minFilter: "nearest",
             magFilter: "nearest",
         });
+        this.composeSampler = device.createSampler({
+            label: "composeSampler",
+            minFilter: "nearest",
+            magFilter: "nearest",
+        });
 
         this.lightTexture2DViewArray = array(6 * config.lightSampleCount, i => this.lightTexture.createView({
             label: `lightTexture2DViewArray[${i}]`,
@@ -512,10 +554,12 @@ ${RENDERER_DISPLAY_CODE}
             label: "shadowTextureCubeArrayView",
             dimension: "cube-array",
         });
-        this.cameraDepthTexture2DView = this.cameraDepthTexture.createView({
-            label: "cameraDepthTexture2DView",
+        this.cameraDepthTexture2DViewArray = array(2, i => this.cameraDepthTexture.createView({
+            label: `cameraDepthTexture2DViewArray[${i}]`,
             dimension: "2d",
-        });
+            baseArrayLayer: i,
+            arrayLayerCount: 1,
+        }));
         this.cameraPositionTexture2DView = this.cameraPositionTexture.createView({
             label: "cameraPositionTexture2DView",
             dimension: "2d",
@@ -596,6 +640,18 @@ ${RENDERER_DISPLAY_CODE}
                 binding: 2,
                 visibility: GPUShaderStage.FRAGMENT,
                 texture: {sampleType: "unfilterable-float", viewDimension: "2d"},
+            }, {
+                binding: 3,
+                visibility: GPUShaderStage.FRAGMENT,
+                texture: {sampleType: "unfilterable-float", viewDimension: "2d"},
+            }, {
+                binding: 4,
+                visibility: GPUShaderStage.FRAGMENT,
+                sampler: {type: "non-filtering"},
+            }, {
+                binding: 5,
+                visibility: GPUShaderStage.FRAGMENT,
+                texture: {sampleType: "depth", viewDimension: "2d"},
             }],
         });
         let displayBindGroup0Layout = device.createBindGroupLayout({
@@ -898,8 +954,8 @@ ${RENDERER_DISPLAY_CODE}
                 },
             }],
         });
-        this.cameraBindGroup0 = device.createBindGroup({
-            label: "cameraBindGroup0",
+        this.cameraBindGroup0Array = array(2, i => device.createBindGroup({
+            label: `cameraBindGroup0[${i}]`,
             layout: this.cameraBindGroup0Layout,
             entries: [{
                 binding: 0,
@@ -919,7 +975,7 @@ ${RENDERER_DISPLAY_CODE}
                 resource: this.cameraFactorTexture2DArrayView,
             }, {
                 binding: 4,
-                resource: this.cameraDepthTexture2DView,
+                resource: this.cameraDepthTexture2DViewArray[i],
             }, {
                 binding: 5,
                 resource: this.lightSampler,
@@ -927,7 +983,7 @@ ${RENDERER_DISPLAY_CODE}
                 binding: 6,
                 resource: this.shadowSampler,
             }],
-        });
+        }));
         this.traceMappingBindGroup0Array2 = array(config.traceCount, count => array(config.traceDepth, depth => device.createBindGroup({
             label: `traceMappingBindGroup0Array2[${count}][${depth}]`,
             layout: traceMappingBindGroup0Layout,
@@ -1042,6 +1098,15 @@ ${RENDERER_DISPLAY_CODE}
             }, {
                 binding: 2,
                 resource: this.colorTexture2DViewArray[0],
+            }, {
+                binding: 3,
+                resource: this.cameraPositionTexture2DView,
+            }, {
+                binding: 4,
+                resource: this.composeSampler,
+            }, {
+                binding: 5,
+                resource: arrayCycleIndex(this.cameraDepthTexture2DViewArray, i + 1),
             }],
         }));
         this.displayBindGroup0Array = array(2, i => device.createBindGroup({
@@ -1241,6 +1306,11 @@ ${RENDERER_DISPLAY_CODE}
      */
     shadowSampler;
 
+    /**
+     * @type {GPUSampler}
+     */
+    composeSampler;
+
     /// 纹理视图
 
     /**
@@ -1274,9 +1344,9 @@ ${RENDERER_DISPLAY_CODE}
     /**
      * `cameraDepthTexture` 的视图
      *
-     * @type {GPUTextureView}
+     * @type {GPUTextureView[]}
      */
-    cameraDepthTexture2DView;
+    cameraDepthTexture2DViewArray;
 
     /**
      * `cameraPositionTexture` 的视图
@@ -1412,9 +1482,9 @@ ${RENDERER_DISPLAY_CODE}
     cameraDepthBindGroup0;
 
     /**
-     * @type {GPUBindGroup}
+     * @type {GPUBindGroup[]}
      */
-    cameraBindGroup0;
+    cameraBindGroup0Array;
 
     /**
      * @type {GPUBindGroup[][]}
@@ -1539,7 +1609,7 @@ ${RENDERER_DISPLAY_CODE}
             label: "cameraDepthPass",
             colorAttachments: [],
             depthStencilAttachment: {
-                view: this.cameraDepthTexture2DView,
+                view: arrayCycleIndex(this.cameraDepthTexture2DViewArray, this.renderIndex),
                 depthClearValue: 1,
                 depthLoadOp: "clear",
                 depthStoreOp: "store",
@@ -1576,11 +1646,11 @@ ${RENDERER_DISPLAY_CODE}
                 storeOp: "store",
             }],
             depthStencilAttachment: {
-                view: this.cameraDepthTexture2DView,
+                view: arrayCycleIndex(this.cameraDepthTexture2DViewArray, this.renderIndex),
                 depthReadOnly: true,
             },
         });
-        cameraPass.setBindGroup(0, this.cameraBindGroup0);
+        cameraPass.setBindGroup(0, arrayCycleIndex(this.cameraBindGroup0Array, this.renderIndex));
         for (let model of this.models) {
             model.cameraPass(cameraPass);
         }
@@ -1672,7 +1742,7 @@ ${RENDERER_DISPLAY_CODE}
                     view: arrayCycleIndex(this.composeColorTexture2DViewArray, this.renderIndex),
                     loadOp: "clear",
                     storeOp: "store",
-                }
+                },
             ],
         });
         pass.setBindGroup(0, arrayCycleIndex(this.composeBindGroup0Array, this.renderIndex));
@@ -1714,7 +1784,12 @@ ${RENDERER_DISPLAY_CODE}
         this.state.setCameraViewProjection(viewProjection);
     }
 
+    onRenderListeners = [];
+
     render() {
+        for (let l of this.onRenderListeners) {
+            l(this);
+        }
         for (let model of this.models) {
             model.prepare();
         }
@@ -1732,12 +1807,13 @@ ${RENDERER_DISPLAY_CODE}
         });
         this.device.queue.writeBuffer(this.stateBuffer, 0, this.state.buffer);
         this.device.queue.submit([commandBuffer]);
+        mat4.copy(this.state.composeInfo.lastCameraMatrix.buffer, this.state.cameraInfo.viewProjection.buffer);
 
+        let time = performance.now();
         document.querySelector("#frameCount").innerText = `${this.renderIndex}`;
+        document.querySelector("#time").innerText = `${(time - this.beginTime) | 0}`;
         if (this.renderIndex % 60 === 59) {
-            let time = performance.now();
             document.querySelector("#fps").innerText = `${((6000000 / (time - this.lastTime)) | 0) / 100}`;
-            document.querySelector("#time").innerText = `${(time - this.beginTime) | 0}`;
             this.lastTime = time;
         }
         this.renderIndex++;
