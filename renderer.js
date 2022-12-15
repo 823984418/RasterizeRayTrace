@@ -333,7 +333,7 @@ fn vertex_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) v
 @fragment
 fn fragment_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let pos = vec2<i32>(position.xy);
-    var color = pow(clamp(textureLoad(overlayColorTexture, pos, 0).rgb, vec3(0), vec3(1)), vec3(0.6));
+    var color = textureLoad(overlayColorTexture, pos, 0).rgb;
     var facing: f32 = 1;
     if (debug_taa) {
         var lastPosition = textureLoad(lastPositionTexture, pos, 0);
@@ -374,7 +374,7 @@ fn vertex_main(@builtin(vertex_index) vertex_index : u32) -> @builtin(position) 
 fn fragment_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let pos = vec2<i32>(position.xy);
     let composeColor = textureLoad(composeColorTexture, pos, 0);
-    return vec4(composeColor.rgb, 1);
+    return vec4(pow(composeColor.rgb, vec3(0.6)), 1);
 }
 `;
 

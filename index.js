@@ -3,6 +3,8 @@ import {StaticModel} from "./static_model.js";
 import {mat3, mat4, vec3, vec4} from "./gl-matrix/index.js";
 import {TEST0, TEST1, TEST2, TESTP1, TESTP2, TESTP3, TESTP4} from "./test.js";
 import {LightModel} from "./light_model.js";
+import {TextureModel} from "./texture_model.js";
+import {loadPmxTextureModel} from "./load_pmx_model.js";
 
 
 window.addEventListener("error", event => {
@@ -145,15 +147,51 @@ vec4.copy(modelP4.modelInfo.emit.buffer, [0, 0, 0, 1]);
 vec4.copy(modelP4.modelInfo.diffuse.buffer, [0.14, 0.45, 0.091, 1]);
 renderer.models.push(modelP4);
 
-let model2 = new StaticModel(renderer);
-model2.setData(TEST2, getNormal(TEST2));
-vec4.copy(model2.modelInfo.emit.buffer, [0, 0, 0, 1]);
-vec4.copy(model2.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
-renderer.models.push(model2);
+// let model2 = new StaticModel(renderer);
+// model2.setData(TEST2, getNormal(TEST2));
+// vec4.copy(model2.modelInfo.emit.buffer, [0, 0, 0, 1]);
+// vec4.copy(model2.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
+// renderer.models.push(model2);
+
+// let begin = performance.now();
+// renderer.onRenderListeners.push(() => {
+//     mat4.translate(model2.modelInfo.model.buffer, mat4.create(), [Math.sin((performance.now() - begin) * 0.002) * 100 + 60, 0, 0]);
+// });
+
+let pmx = await loadPmxTextureModel(renderer, new URL("ningguang/凝光.pmx", document.baseURI));
+
 
 let begin = performance.now();
 renderer.onRenderListeners.push(() => {
-    mat4.translate(model2.modelInfo.model.buffer, mat4.create(), [Math.sin((performance.now() - begin) * 0.002) * 100 + 60, 0, 0]);
+    let matrix = mat4.create();
+    mat4.translate(matrix, matrix, [250, 0, 400]);
+    mat4.scale(matrix, matrix, [20, 20, 20]);
+    if (config.debug_taa) {
+        mat4.rotateY(matrix, matrix, (performance.now() - begin) * 0.0001);
+    }
+    let nm = mat3.normalFromMat4([], matrix);
+    pmx.forEach(model => {
+        mat4.copy(model.modelInfo.model.buffer, matrix);
+        let nn = model.modelInfo.normalModel.buffer;
+        nn[0] = nm[0];
+        nn[1] = nm[1];
+        nn[2] = nm[2];
+        nn[3] = 0;
+        nn[4] = nm[3];
+        nn[5] = nm[4];
+        nn[6] = nm[5];
+        nn[7] = 0;
+        nn[8] = nm[6];
+        nn[9] = nm[7];
+        nn[10] = nm[8];
+        nn[11] = 0;
+        nn[12] = 0;
+        nn[13] = 0;
+        nn[14] = 0;
+        nn[15] = 0;
+
+    });
+
 });
 
 
