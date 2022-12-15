@@ -161,10 +161,12 @@ let x = 0;
 let y = 0;
 
 function updateCamera() {
-    // renderer.renderIndex = 0;
     let eye = vec3.add([], [278, 273, 300], vec3.rotateY([], vec3.rotateX([], [0, 0, -1100], [0, 0, 0], y * 4), [0, 0, 0], -x * 4));
     renderer.setCamera(eye, [278, 273, 300], [0, 1, 0], Math.PI * 0.22, canvas.clientWidth / canvas.clientHeight, 500, 2000);
-    renderer.beginTime = performance.now();
+    if (!config.debug_taa) {
+        renderer.beginTime = performance.now();
+        renderer.renderIndex = 0;
+    }
     renderer.render();
 }
 
