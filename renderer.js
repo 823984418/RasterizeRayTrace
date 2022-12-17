@@ -1,11 +1,5 @@
 import {mat4, vec3, vec4} from "./gl-matrix/index.js";
-import {
-    BufferArray,
-    BufferVec4F32,
-    BufferMat4x4F32,
-    BufferStruct,
-    BufferUint32
-} from "./buffer_struct.js";
+import {BufferArray, BufferMat4x4F32, BufferStruct, BufferUint32, BufferVec4F32} from "./buffer_struct.js";
 import {array, arrayCycleIndex} from "./kits.js";
 
 
@@ -220,6 +214,8 @@ export class RendererInfoBufferStruct extends BufferStruct {
 export class RendererConfig {
     renderWidth = 1024;
     renderHeight = 1024;
+    composeWidth = 1024;
+    composeHeight = 1024;
     lightSampleCount = 1;
     traceCount = 1;
     traceDepth = 1;
@@ -232,28 +228,32 @@ export class RendererConfig {
     traceDepthBias = 0;
     shadowDepthBias = 0;
     debug_clearCameraFactor = false;
-    debug_taa = false;
+    debug_taa = true;
     taa_factor = 0.98;
     taa_maxDeltaZ = 0.01;
+    taa_fastPower = 0.3;
 
     toWGSL() {
         return `// WGSL
-const renderWidth: u32 = ${this.renderWidth};
-const renderHeight: u32 = ${this.renderHeight};
-const lightSampleCount: u32 = ${this.lightSampleCount};
-const traceCount: u32 = ${this.traceCount};
-const traceDepth: u32 = ${this.traceDepth};
-const lightTextureSize: u32 = ${this.lightTextureSize};
-const shadowTextureSize: u32 = ${this.shadowTextureSize};
-const traceMappingSize: u32 = ${this.traceMappingSize};
-const traceWordSize: u32 = ${this.traceWordSize};
+const renderWidth: u32 = ${this.renderWidth | 0};
+const renderHeight: u32 = ${this.renderHeight | 0};
+const composeWidth: u32 = ${this.composeWidth | 0};
+const composeHeight: u32 = ${this.composeHeight | 0};
+const lightSampleCount: u32 = ${this.lightSampleCount | 0};
+const traceCount: u32 = ${this.traceCount | 0};
+const traceDepth: u32 = ${this.traceDepth | 0};
+const lightTextureSize: u32 = ${this.lightTextureSize | 0};
+const shadowTextureSize: u32 = ${this.shadowTextureSize | 0};
+const traceMappingSize: u32 = ${this.traceMappingSize | 0};
+const traceWordSize: u32 = ${this.traceWordSize | 0};
 const shadowNearDistance: f32 = ${this.shadowNearDistance};
 const shadowFarDistance: f32 = ${this.shadowFarDistance};
 const traceDepthBias: f32 = ${this.traceDepthBias};
 const shadowDepthBias: f32 = ${this.shadowDepthBias};
-const debug_taa: bool = ${this.debug_taa};
+const debug_taa: bool = ${!!this.debug_taa};
 const taa_factor: f32 = ${this.taa_factor};
 const taa_maxDeltaZ: f32 = ${this.taa_maxDeltaZ};
+const taa_fastPower: f32 = ${this.taa_fastPower};
 const PI: f32 = 3.1415916;
 
 `;
@@ -324,39 +324,69 @@ var composeSampler: sampler;
 @group(0) @binding(5)
 var lastDepthTexture: texture_depth_2d;
 
+@group(0) @binding(6)
+var composeColorSampler: sampler;
+
+struct VertexOutput {
+    @builtin(position)
+    position: vec4<f32>,
+    
+    @location(0)
+    pos: vec2<f32>,
+}
+
+struct FragmentInput {
+
+    @builtin(position)
+    position: vec4<f32>,
+    
+    @location(0)
+    pos: vec2<f32>,
+    
+}
+
 @vertex
-fn vertex_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
+fn vertex_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
     let pos = vec2<f32>(vec2<u32>((vertex_index % 3) & 1, (vertex_index % 3) >> 1));
-    return vec4(pos * 4 - 1, 0.0, 1.0);
+    return VertexOutput(vec4(pos * 4 - 1, 0.0, 1.0), pos * 4 - 1);
 }
 
 @fragment
-fn fragment_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let pos = vec2<i32>(position.xy);
-    var color = textureLoad(overlayColorTexture, pos, 0).rgb;
+fn fragment_main(input: FragmentInput) -> @location(0) vec4<f32> {
+    var inputPos = input.pos;
+    inputPos.y = -inputPos.y;
+    inputPos = inputPos * 0.5 + 0.5;
+    let fPos = inputPos * vec2(f32(renderWidth), f32(renderHeight));
+    let deltaPos = (fract(fPos) - 0.5) / vec2(f32(renderWidth), f32(renderHeight));
+    
+    var color: vec4<f32> = textureSampleLevel(overlayColorTexture, composeSampler, inputPos, 0);
     var facing: f32 = 1;
     if (debug_taa) {
-        var lastPosition = textureLoad(lastPositionTexture, pos, 0);
+        var lastPosition = textureSampleLevel(lastPositionTexture, composeSampler, inputPos, 0);
         lastPosition.y = -lastPosition.y;
         facing = lastPosition.w;
         if (lastPosition.x > -1 && lastPosition.x < 1 && lastPosition.y > -1 && lastPosition.y < 1 && lastPosition.z > 0 && lastPosition.z < 1) {
             let lastDepth = textureSampleLevel(lastDepthTexture, composeSampler, lastPosition.xy * 0.5 + 0.5, 0);
             if (abs(lastDepth - lastPosition.z) < taa_maxDeltaZ) {
-                let lastComposeColor: vec4<f32> = textureSampleLevel(lastComposeColorTexture, composeSampler, lastPosition.xy * 0.5 + 0.5, 0);
-                if ((lastComposeColor.w > 0) == (facing > 0)) {
-                    color = color * (1 - taa_factor) + lastComposeColor.rgb * taa_factor;
+                let lastComposeColor: vec4<f32> = textureSampleLevel(lastComposeColorTexture, composeColorSampler, lastPosition.xy * 0.5 + 0.5 + deltaPos, 0);
+                let p = abs(lastComposeColor.a);
+                if ((lastComposeColor.a > 0) == (facing > 0)) {
+                    if (p == 1) {
+                        color = vec4(color.rgb * (1 - taa_factor) + lastComposeColor.rgb * taa_factor, 1);
+                    } else {
+                        color = vec4((color.rgb * p + lastComposeColor.rgb * taa_fastPower) / (p + taa_fastPower), min(p + taa_fastPower, 1));
+                    }
                 }
             }
         }
     } else {
-        let lastComposeColor = textureLoad(lastComposeColorTexture, pos, 0).rgb;
+        let lastComposeColor = textureSampleLevel(lastComposeColorTexture, composeColorSampler, inputPos, 0).rgb;
         let ab = vec2<f32>(f32(composeInfo.renderIndex), 1) / f32(composeInfo.renderIndex + 1);
-        color = lastComposeColor * ab.x + color * ab.y;
+        color = vec4(lastComposeColor.rgb * ab.x + color.rgb * ab.y, 1);
     }
     
-    
-    // let ab = vec2<f32>(f32(composeInfo.renderIndex), 1) / f32(composeInfo.renderIndex + 1);
-    return vec4(color.rgb, facing);
+    color.w *= facing;
+    return color;
 }
 `;
 let RENDERER_DISPLAY_CODE = `// WGSL
@@ -364,17 +394,44 @@ let RENDERER_DISPLAY_CODE = `// WGSL
 @group(0) @binding(0)
 var composeColorTexture: texture_2d<f32>;
 
+@group(0) @binding(1)
+var cameraColorTexture: texture_2d<f32>;
+
+@group(0) @binding(2)
+var displaySampler: sampler;
+
+struct VertexOutput {
+    @builtin(position)
+    position: vec4<f32>,
+    
+    @location(0)
+    pos: vec2<f32>,
+}
+
+struct FragmentInput {
+
+    @builtin(position)
+    position: vec4<f32>,
+    
+    @location(0)
+    pos: vec2<f32>,
+    
+}
+
 @vertex
-fn vertex_main(@builtin(vertex_index) vertex_index : u32) -> @builtin(position) vec4<f32> {
+fn vertex_main(@builtin(vertex_index) vertex_index : u32) -> VertexOutput {
     let pos = vec2<f32>(vec2<u32>((vertex_index % 3) & 1, (vertex_index % 3) >> 1));
-    return vec4(pos * 4 - 1, 0.0, 1.0);
+    return VertexOutput(vec4(pos * 4 - 1, 0.0, 1.0), pos * 4 - 1);
 }
 
 @fragment
-fn fragment_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let pos = vec2<i32>(position.xy);
-    let composeColor = textureLoad(composeColorTexture, pos, 0);
-    return vec4(pow(composeColor.rgb, vec3(0.6)), 1);
+fn fragment_main(input: FragmentInput) -> @location(0) vec4<f32> {
+    var pos = input.pos;
+    pos.y = -pos.y;
+    pos = pos * 0.5 + 0.5;
+    let composeColor = textureSampleLevel(composeColorTexture, displaySampler, pos, 0);
+    let cameraColor = textureSampleLevel(cameraColorTexture, displaySampler, pos, 0);
+    return vec4(pow(composeColor.rgb + cameraColor.rgb, vec3(0.6)), 1);
 }
 `;
 
@@ -444,6 +501,13 @@ ${RENDERER_DISPLAY_CODE}
             size: [config.renderWidth, config.renderHeight, 2],
             dimension: "2d",
             format: "depth32float",
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+        this.cameraColorTexture = device.createTexture({
+            label: "cameraColorTexture",
+            size: [config.renderWidth, config.renderHeight, 1],
+            dimension: "2d",
+            format: "rgba16float",
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
         });
         this.cameraPositionTexture = device.createTexture({
@@ -521,9 +585,9 @@ ${RENDERER_DISPLAY_CODE}
         });
         this.composeColorTexture = device.createTexture({
             label: "composeColorTexture",
-            size: [config.renderWidth, config.renderHeight, 2],
+            size: [config.composeWidth, config.composeHeight, 2],
             dimension: "2d",
-            format: "rgba32float",
+            format: config.debug_taa ? "rgba16float" : "rgba32float",
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
         });
 
@@ -541,6 +605,16 @@ ${RENDERER_DISPLAY_CODE}
             label: "composeSampler",
             minFilter: "nearest",
             magFilter: "nearest",
+        });
+        this.composeColorSampler = device.createSampler({
+            label: "composeColorSampler",
+            minFilter: config.debug_taa ? "linear" : "nearest",
+            magFilter: config.debug_taa ? "linear" : "nearest",
+        });
+        this.displaySampler = device.createSampler({
+            label: "displaySampler",
+            minFilter: config.debug_taa ? "linear" : "nearest",
+            magFilter: config.debug_taa ? "linear" : "nearest",
         });
 
         this.lightTexture2DViewArray = array(6 * config.lightSampleCount, i => this.lightTexture.createView({
@@ -569,6 +643,10 @@ ${RENDERER_DISPLAY_CODE}
             baseArrayLayer: i,
             arrayLayerCount: 1,
         }));
+        this.cameraColorTexture2DView = this.cameraColorTexture.createView({
+            label: "cameraColorTexture2DView",
+            dimension: "2d",
+        });
         this.cameraPositionTexture2DView = this.cameraPositionTexture.createView({
             label: "cameraPositionTexture2DView",
             dimension: "2d",
@@ -648,7 +726,7 @@ ${RENDERER_DISPLAY_CODE}
             }, {
                 binding: 1,
                 visibility: GPUShaderStage.FRAGMENT,
-                texture: {sampleType: "unfilterable-float", viewDimension: "2d"},
+                texture: {sampleType: config.debug_taa ? "float" : "unfilterable-float", viewDimension: "2d"},
             }, {
                 binding: 2,
                 visibility: GPUShaderStage.FRAGMENT,
@@ -665,6 +743,10 @@ ${RENDERER_DISPLAY_CODE}
                 binding: 5,
                 visibility: GPUShaderStage.FRAGMENT,
                 texture: {sampleType: "depth", viewDimension: "2d"},
+            }, {
+                binding: 6,
+                visibility: GPUShaderStage.FRAGMENT,
+                sampler: {type: config.debug_taa ? "filtering" : "non-filtering"},
             }],
         });
         let displayBindGroup0Layout = device.createBindGroupLayout({
@@ -672,7 +754,15 @@ ${RENDERER_DISPLAY_CODE}
             entries: [{
                 binding: 0,
                 visibility: GPUShaderStage.FRAGMENT,
-                texture: {sampleType: "unfilterable-float", viewDimension: "2d"},
+                texture: {sampleType: config.debug_taa ? "float" : "unfilterable-float", viewDimension: "2d"},
+            }, {
+                binding: 1,
+                visibility: GPUShaderStage.FRAGMENT,
+                texture: {sampleType: config.debug_taa ? "float" : "unfilterable-float", viewDimension: "2d"},
+            }, {
+                binding: 2,
+                visibility: GPUShaderStage.FRAGMENT,
+                sampler: {type: config.debug_taa ? "filtering" : "non-filtering"},
             }]
         });
 
@@ -710,7 +800,7 @@ ${RENDERER_DISPLAY_CODE}
                 module: composeShaderModule,
                 entryPoint: "fragment_main",
                 targets: [{
-                    format: "rgba32float",
+                    format: config.debug_taa ? "rgba16float" : "rgba32float",
                 }],
             },
         });
@@ -1120,6 +1210,9 @@ ${RENDERER_DISPLAY_CODE}
             }, {
                 binding: 5,
                 resource: arrayCycleIndex(this.cameraDepthTexture2DViewArray, i + 1),
+            }, {
+                binding: 6,
+                resource: this.composeColorSampler,
             }],
         }));
         this.displayBindGroup0Array = array(2, i => device.createBindGroup({
@@ -1128,6 +1221,12 @@ ${RENDERER_DISPLAY_CODE}
             entries: [{
                 binding: 0,
                 resource: arrayCycleIndex(this.composeColorTexture2DViewArray, i),
+            }, {
+                binding: 1,
+                resource: this.cameraColorTexture2DView,
+            }, {
+                binding: 2,
+                resource: this.displaySampler,
             }],
         }));
 
@@ -1217,6 +1316,11 @@ ${RENDERER_DISPLAY_CODE}
     cameraDepthTexture;
 
     /**
+     * @type {GPUTexture}
+     */
+    cameraColorTexture;
+
+    /**
      * 相机位置纹理
      *
      * @type {GPUTexture}
@@ -1299,7 +1403,7 @@ ${RENDERER_DISPLAY_CODE}
 
     /**
      * 颜色纹理
-     * 两层轮换累积相机和追踪颜色
+     * 两层轮换累积追踪颜色
      *
      * @type {GPUTexture}
      */
@@ -1330,6 +1434,16 @@ ${RENDERER_DISPLAY_CODE}
      * @type {GPUSampler}
      */
     composeSampler;
+
+    /**
+     * @type {GPUSampler}
+     */
+    composeColorSampler;
+
+    /**
+     * @type {GPUSampler}
+     */
+    displaySampler;
 
     /// 纹理视图
 
@@ -1374,6 +1488,11 @@ ${RENDERER_DISPLAY_CODE}
      * @type {GPUTextureView}
      */
     cameraPositionTexture2DView;
+
+    /**
+     * @type {GPUTextureView}
+     */
+    cameraColorTexture2DView;
 
     /**
      * @type {GPUTextureView}
@@ -1673,6 +1792,10 @@ ${RENDERER_DISPLAY_CODE}
                 view: this.cameraLastPositionTexture2DView,
                 loadOp: "clear",
                 storeOp: "store",
+            }, {
+                view: this.cameraColorTexture2DView,
+                loadOp: "clear",
+                storeOp: "store",
             }],
             depthStencilAttachment: {
                 view: arrayCycleIndex(this.cameraDepthTexture2DViewArray, this.renderIndex),
@@ -1814,6 +1937,7 @@ ${RENDERER_DISPLAY_CODE}
     }
 
     onRenderListeners = [];
+    onRenderFinishListeners = [];
 
     render() {
         for (let l of this.onRenderListeners) {
@@ -1839,27 +1963,30 @@ ${RENDERER_DISPLAY_CODE}
         mat4.copy(this.state.composeInfo.lastCameraMatrix.buffer, this.state.cameraInfo.viewProjection.buffer);
         mat4.copy(this.state.cameraInfo.lastViewProjection.buffer, this.state.cameraInfo.viewProjection.buffer);
 
-        let time = performance.now();
-        document.querySelector("#frameCount").innerText = `${this.renderIndex}`;
-        document.querySelector("#time").innerText = `${(time - this.beginTime) | 0}`;
-        if (this.renderIndex % 60 === 59) {
-            document.querySelector("#fps").innerText = `${((6000000 / (time - this.lastTime)) | 0) / 100}`;
-            this.lastTime = time;
+        this.lastTime = performance.now();
+        for (let l of this.onRenderFinishListeners) {
+            l(this);
         }
         this.renderIndex++;
     }
 
     beginTime;
     lastTime;
+    lastFpsTime;
+
+    handle = 0;
 
     begin() {
-        this.beginTime = this.lastTime = performance.now();
+        this.beginTime = this.lastFpsTime = performance.now();
         let loop = () => {
+            this.handle = requestAnimationFrame(loop);
             this.render();
-            requestAnimationFrame(loop);
         }
+        this.handle = requestAnimationFrame(loop);
+    }
 
-        requestAnimationFrame(loop);
+    end() {
+        cancelAnimationFrame(this.handle);
     }
 
 }

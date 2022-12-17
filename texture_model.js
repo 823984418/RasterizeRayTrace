@@ -168,7 +168,8 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
     let pos = vec2<i32>(input.position.xy);
     let diffuse: vec3<f32> = modelInfo.diffuse.rgb * textureSampleLevel(diffuseTexture, modelSampler, input.uv, 0).rgb;
     let emit: vec3<f32> = modelInfo.emit.rgb * textureSampleLevel(emitTexture, modelSampler, input.uv, 0).rgb;
-    var color: vec3<f32> = emit;
+    var appendColor: vec3<f32> = emit;
+    var color = vec3<f32>(0);
     if (depthTest(pos, input.position.z)) {
     
         for (var i: i32 = 0; i < i32(traceCount); i++) {
@@ -193,7 +194,7 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
             }
         }
     }
-    return FragmentOutput(vec4(color, 1.0), vec4<f32>(input.worldPosition, 1), vec4<f32>(input.lastPosition, f32(input.facing) * 2 - 1));
+    return FragmentOutput(vec4(color, 1.0), vec4<f32>(input.worldPosition, 1), vec4<f32>(input.lastPosition, f32(input.facing) * 2 - 1), vec4(appendColor, 1));
 }
 `;
 
@@ -456,6 +457,7 @@ ${STATIC_MODEL_TRACE_CODE}
                     {format: "rgba32float"},
                     {format: "rgba32float"},
                     {format: "rgba32float"},
+                    {format: "rgba16float"},
                 ],
             },
             depthStencil: {

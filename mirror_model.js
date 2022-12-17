@@ -10,8 +10,8 @@ import {mat4, vec4} from "./gl-matrix/index.js";
 import {Model} from "./model.js";
 
 
-class StaticModelInfo extends BufferStruct {
-    static WGSL = "struct StaticModelInfo {model: mat4x4<f32>, lastModel: mat4x4<f32>, normalModel: mat4x4<f32>, diffuse: vec4<f32>, emit: vec4<f32>}";
+class MirrorModelInfo extends BufferStruct {
+    static WGSL = "struct MirrorModelInfo {model: mat4x4<f32>, lastModel: mat4x4<f32>, normalModel: mat4x4<f32>, mirror: vec4<f32>}";
 
     constructor() {
         super();
@@ -19,8 +19,7 @@ class StaticModelInfo extends BufferStruct {
             this.model,
             this.lastModel,
             this.normalModel,
-            this.diffuse,
-            this.emit,
+            this.mirror,
         ], 256);
     }
 
@@ -28,11 +27,14 @@ class StaticModelInfo extends BufferStruct {
     model = new BufferMat4x4F32();
     lastModel = new BufferMat4x4F32();
     normalModel = new BufferMat4x4F32();
-    diffuse = new BufferVec4F32();
-    emit = new BufferVec4F32();
+    /**
+     * r g b dot
+     * @type {BufferVec4F32}
+     */
+    mirror = new BufferVec4F32();
 }
 
-let STATIC_MODEL_VERTEX_DEFINE = `// WGSL
+let MIRROR_MODEL_VERTEX_DEFINE = `// WGSL
 struct VertexInput {
     @builtin(vertex_index)
     vertex_index: u32,
@@ -45,13 +47,13 @@ struct VertexInput {
 }
 `;
 
-let STATIC_MODEL_SHADOW_CODE = `// WGSL
+let MIRROR_MODEL_SHADOW_CODE = `// WGSL
 ${SHADOW_DEFINE}
-${StaticModelInfo.WGSL}
-${STATIC_MODEL_VERTEX_DEFINE}
+${MirrorModelInfo.WGSL}
+${MIRROR_MODEL_VERTEX_DEFINE}
 
 @group(1) @binding(0)
-var<uniform> modelInfo: StaticModelInfo;
+var<uniform> modelInfo: MirrorModelInfo;
 
 @vertex
 fn vertex_main(input: VertexInput) -> @builtin(position) vec4<f32> {
@@ -65,13 +67,13 @@ fn fragment_main() {
 }
 `;
 
-let STATIC_MODEL_CAMERA_DEPTH_CODE = `// WGSL
+let MIRROR_MODEL_CAMERA_DEPTH_CODE = `// WGSL
 ${CAMERA_DEPTH_DEFINE}
-${StaticModelInfo.WGSL}
-${STATIC_MODEL_VERTEX_DEFINE}
+${MirrorModelInfo.WGSL}
+${MIRROR_MODEL_VERTEX_DEFINE}
 
 @group(1) @binding(0)
-var<uniform> modelInfo: StaticModelInfo;
+var<uniform> modelInfo: MirrorModelInfo;
 
 @vertex
 fn vertex_main(input: VertexInput) -> @builtin(position) vec4<f32> {
@@ -85,13 +87,13 @@ fn fragment_main() {
 }
 `;
 
-let STATIC_MODEL_CAMERA_CODE = `// WGSL
+let MIRROR_MODEL_CAMERA_CODE = `// WGSL
 ${CAMERA_DEFINE}
-${StaticModelInfo.WGSL}
-${STATIC_MODEL_VERTEX_DEFINE}
+${MirrorModelInfo.WGSL}
+${MIRROR_MODEL_VERTEX_DEFINE}
 
 @group(1) @binding(0)
-var<uniform> modelInfo: StaticModelInfo;
+var<uniform> modelInfo: MirrorModelInfo;
 
 struct VertexOutput {
     @builtin(position)
@@ -143,19 +145,26 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
     let normal: vec3<f32> = normalize(input.worldNormal);
     let camera: vec3<f32> = cameraInfo.cameraPosition.xyz;
     let position: vec3<f32> = input.worldPosition.xyz;
-    let c = dot(normalize(camera - position), normal);
-    
+    // P -> C
+    let look = normalize(camera - position);
+    let c = dot(look, normal);
+    // P -> T
+    let need = 2 * c * normal - look;
+    let maxAngle2 = modelInfo.mirror.a;
+    let mirror = modelInfo.mirror.rgb;
     let pos = vec2<i32>(input.position.xy);
-    var appendColor: vec3<f32> = modelInfo.emit.rgb;
+    var appendColor: vec3<f32> = vec3(0);
     var color = vec3<f32>(0);
     if (depthTest(pos, input.position.z)) {
         for (var i: i32 = 0; i < i32(traceCount); i++) {
             let targetI: vec4<f32> = cameraInfo.directionToArray[i];
             var factor = vec3<f32>(0);
             if (targetI.w == 0) {
-                let tc = dot(normalize(targetI.xyz), normal);
+                let tc = dot(targetI.xyz, normal);
                 if ((tc > 0) == (c > 0)) {
-                    factor = modelInfo.diffuse.rgb * abs(tc) * 4 / f32(traceCount);
+                    if (dot(need - targetI.xyz, need - targetI.xyz) < maxAngle2) {
+                        factor = mirror * 4 * PI / f32(traceCount);
+                    }
                 }
             }
             setFactor(pos, i, factor);
@@ -163,10 +172,13 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
         for (var i = 0; i < i32(lightSampleCount); i++) {
             let lightPosition = cameraInfo.lightArray[i];
             if (lightPosition.w == 1) {
-                let lc = dot(normalize(lightPosition.xyz - position), normal);
+                let lightDirection = normalize(lightPosition.xyz - position);
+                let lc = dot(lightDirection, normal);
                 if ((lc > 0) == (c > 0)) {
-                    let light = getShadow(i, position);
-                    color += light * modelInfo.diffuse.rgb * abs(lc) / PI / f32(lightSampleCount);
+                    if (dot(need - lightDirection, need - lightDirection) < maxAngle2) {
+                        let light = getShadow(i, position);
+                        color += light * mirror * f32(lightSampleCount);
+                    }
                 }
             }
         }
@@ -175,13 +187,13 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
 }
 `;
 
-let STATIC_MODEL_TRACE_DEPTH_CODE = `// WGSL
+let MIRROR_MODEL_TRACE_DEPTH_CODE = `// WGSL
 ${TRACE_DEPTH_DEFINE}
-${StaticModelInfo.WGSL}
-${STATIC_MODEL_VERTEX_DEFINE}
+${MirrorModelInfo.WGSL}
+${MIRROR_MODEL_VERTEX_DEFINE}
 
 @group(1) @binding(0)
-var<uniform> modelInfo: StaticModelInfo;
+var<uniform> modelInfo: MirrorModelInfo;
 
 @vertex
 fn vertex_main(input: VertexInput) -> @builtin(position) vec4<f32> {
@@ -197,13 +209,13 @@ fn fragment_main(@builtin(position) position: vec4<f32>) {
 }
 `;
 
-let STATIC_MODEL_TRACE_CODE = `// WGSL
+let MIRROR_MODEL_TRACE_CODE = `// WGSL
 ${TRACE_DEFINE}
-${StaticModelInfo.WGSL}
-${STATIC_MODEL_VERTEX_DEFINE}
+${MirrorModelInfo.WGSL}
+${MIRROR_MODEL_VERTEX_DEFINE}
 
 @group(1) @binding(0)
-var<uniform> modelInfo: StaticModelInfo;
+var<uniform> modelInfo: MirrorModelInfo;
 
 struct VertexOutput {
     @builtin(position)
@@ -242,21 +254,29 @@ fn fragment_main(input: FragmentInput) {
     if (head != 0) {
         let normal: vec3<f32> = normalize(input.worldNormal);
         let c = dot(traceInfo.directionFrom.xyz, normal);
+        let need = traceInfo.directionFrom.xyz - 2 * c * normal;
+        let maxAngle2 = modelInfo.mirror.a;
+        let mirror = modelInfo.mirror.rgb;
+        
         let ct = dot(traceInfo.directionTo.xyz, normal);
-        var factor: vec3<f32> = modelInfo.diffuse.rgb * 4 * ct;
+        var factor: vec3<f32> = modelInfo.mirror.rgb * 4 * PI;
         var currentPosition = vec4(input.worldPosition, 1);
-        if ((c > 0) == (ct > 0)) {
+        if ((c > 0) == (ct > 0) || dot(need - traceInfo.directionTo.xyz, need - traceInfo.directionTo.xyz) > maxAngle2) {
             factor = vec3(0);
             currentPosition.w = 0;
         }
-        var color = modelInfo.emit.rgb;
+        var color = vec3<f32>(0);
         for (var i = 0; i < i32(lightSampleCount); i++) {
             let lightPosition = traceInfo.lightArray[i];
             if (lightPosition.w == 1) {
-                let lc = dot(normalize(input.worldPosition.xyz - lightPosition.xyz), normal);
+                let nLightDirection = normalize(input.worldPosition.xyz - lightPosition.xyz);
+                let lc = dot(nLightDirection, normal);
                 if ((lc > 0) == (c > 0)) {
-                    let light = getShadow(i, input.worldPosition.xyz);
-                    color += light * modelInfo.diffuse.rgb * abs(lc) / PI / f32(lightSampleCount);
+                    let deltaDir = need + nLightDirection;
+                    if (dot(deltaDir, deltaDir) < maxAngle2) {
+                        let light = getShadow(i, input.worldPosition.xyz);
+                        color += light * mirror / f32(lightSampleCount);
+                    }
                 }
             }
         }
@@ -266,14 +286,14 @@ fn fragment_main(input: FragmentInput) {
 `;
 
 
-export class StaticModel extends Model {
+export class MirrorModel extends Model {
 
     /**
      * @param {Renderer} renderer
      */
     constructor(renderer) {
         super(renderer);
-        this.modelInfo = new StaticModelInfo();
+        this.modelInfo = new MirrorModelInfo();
         this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.size);
         this.modelInfo.allocate(this.modelInfo.buffer, 0);
 
@@ -281,31 +301,31 @@ export class StaticModel extends Model {
         let shadowShaderModule = device.createShaderModule({
             code: `
 ${renderer.configWGSL}
-${STATIC_MODEL_SHADOW_CODE}
+${MIRROR_MODEL_SHADOW_CODE}
 `,
         });
         let cameraDepthShaderModule = device.createShaderModule({
             code: `
 ${renderer.configWGSL}
-${STATIC_MODEL_CAMERA_DEPTH_CODE}
+${MIRROR_MODEL_CAMERA_DEPTH_CODE}
 `,
         });
         let cameraShaderModule = device.createShaderModule({
             code: `
 ${renderer.configWGSL}
-${STATIC_MODEL_CAMERA_CODE}
+${MIRROR_MODEL_CAMERA_CODE}
 `,
         });
         let traceDepthShaderModule = device.createShaderModule({
             code: `
 ${renderer.configWGSL}
-${STATIC_MODEL_TRACE_DEPTH_CODE}
+${MIRROR_MODEL_TRACE_DEPTH_CODE}
 `,
         });
         let traceShaderModule = device.createShaderModule({
             code: `
 ${renderer.configWGSL}
-${STATIC_MODEL_TRACE_CODE}
+${MIRROR_MODEL_TRACE_CODE}
 `,
         });
 
@@ -472,7 +492,7 @@ ${STATIC_MODEL_TRACE_CODE}
         this.setData(new Float32Array([]), new Float32Array([]));
         mat4.copy(this.modelInfo.model.buffer, mat4.create());
         mat4.copy(this.modelInfo.normalModel.buffer, mat4.create());
-        vec4.copy(this.modelInfo.emit.buffer, [0, 0, 0, 1]);
+        vec4.copy(this.modelInfo.mirror.buffer, [0, 0, 0, 1]);
     }
 
     shadowPipeline;
@@ -482,7 +502,7 @@ ${STATIC_MODEL_TRACE_CODE}
     tracePipeline;
 
     /**
-     * @type {StaticModelInfo}
+     * @type {MirrorModelInfo}
      */
     modelInfo;
 

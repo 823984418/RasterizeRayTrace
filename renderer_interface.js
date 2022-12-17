@@ -103,6 +103,9 @@ struct FragmentOutput {
     @location(2)
     lastPosition: vec4<f32>,
     
+    @location(3)
+    appendColor: vec4<f32>,
+    
 }
 
 `;

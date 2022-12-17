@@ -223,7 +223,8 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
     let c = dot(normalize(camera - position), normal);
     
     let pos = vec2<i32>(input.position.xy);
-    var color: vec3<f32> = modelInfo.emit.rgb + modelInfo.light.rgb;
+    var appendColor: vec3<f32> = modelInfo.emit.rgb + modelInfo.light.rgb;
+    var color = vec3<f32>(0);
     if (depthTest(pos, input.position.z)) {
         for (var i: i32 = 0; i < i32(traceCount); i++) {
             let targetI: vec4<f32> = cameraInfo.directionToArray[i];
@@ -247,7 +248,7 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
             }
         }
     }
-    return FragmentOutput(vec4(color, 1.0), vec4<f32>(input.worldPosition, 1), vec4<f32>(input.lastPosition, f32(input.facing) * 2 - 1));
+    return FragmentOutput(vec4(color, 1.0), vec4<f32>(input.worldPosition, 1), vec4<f32>(input.lastPosition, f32(input.facing) * 2 - 1), vec4(appendColor, 1));
 }
 `;
 
@@ -524,6 +525,7 @@ ${LIGHT_MODEL_TRACE_CODE}
                     {format: "rgba32float"},
                     {format: "rgba32float"},
                     {format: "rgba32float"},
+                    {format: "rgba16float"},
                 ],
             },
             depthStencil: {
@@ -738,7 +740,9 @@ ${LIGHT_MODEL_TRACE_CODE}
             no[index * 9 + 1] * w + no[index * 9 + 4] * u + no[index * 9 + 7] * v,
             no[index * 9 + 2] * w + no[index * 9 + 5] * u + no[index * 9 + 8] * v,
         ];
-        vec3.normalize(normal, normal);
+        let normalVec4 = [...normal, 0];
+        vec4.transformMat4(normalVec4, normalVec4, this.modelInfo.normalModel.buffer);
+        vec3.normalize(normal, normalVec4);
         let fa = factor * this.areaSum * 0.7;
         vec4.copy(this.lightInfo.normalAndFactor.buffer, [normal[0], normal[1], normal[2], fa]);
         this.renderer.device.queue.writeBuffer(this.lightInfoBuffer, 0, this.lightInfo.buffer);
@@ -746,7 +750,9 @@ ${LIGHT_MODEL_TRACE_CODE}
         pass.setBindGroup(1, this.bindGroup1);
         pass.setPipeline(this.lightPipeline);
         pass.draw(3);
-        return [...position, 1];
+        vec4.transformMat4(position, [...position, 1], this.modelInfo.model.buffer);
+        position[3] = 1;
+        return position;
     }
 
 

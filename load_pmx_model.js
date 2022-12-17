@@ -140,6 +140,7 @@ export async function loadPmxTextureModel(renderer, url) {
         model.indexCount = material.elementCount;
 
         let diffuseTexture = visitor.textures[material.texture].texture.createView();
+        console.log(material.localName);
         model.setTexture(diffuseTexture, zeroTexture);
         models.push(model);
         sum += material.elementCount;
