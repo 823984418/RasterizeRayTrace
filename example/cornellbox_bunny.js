@@ -59,8 +59,6 @@ context.configure({
 renderer.context = context;
 
 let boxMatrix = mat4.create();
-mat4.scale(boxMatrix, boxMatrix, [1, 1.093, 1]);
-
 let light = loadObjLightModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/light.obj")).text());
 light.lightPower = 1;
 vec4.copy(light.modelInfo.light.buffer, [47, 38, 31, 1]);
