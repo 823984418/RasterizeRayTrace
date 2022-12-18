@@ -41,9 +41,6 @@ config.shadowFarDistance = 900;
 config.traceDepthBias = 0.005;
 config.shadowDepthBias = 0.001;
 config.debug_taa = false;
-config.taa_factor = 0.95;
-config.taa_maxDeltaZ = 0.005;
-config.taa_fastPower = 1 / 9;
 let renderer = new Renderer(device, config);
 
 vec3.copy(renderer.traceCenter, [278, 273, 300]);

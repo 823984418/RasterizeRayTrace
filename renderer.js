@@ -562,12 +562,12 @@ ${RENDERER_DISPLAY_CODE}
         this.traceMappingBuffer = device.createBuffer({
             label: "traceMappingBuffer",
             size: config.traceMappingSize * config.traceMappingSize * Uint32Array.BYTES_PER_ELEMENT,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,// fixme
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
         this.traceDepthBuffer = device.createBuffer({
             label: "traceDepthBuffer",
             size: config.renderWidth * config.renderHeight * Uint32Array.BYTES_PER_ELEMENT,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,// fixme
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
         this.traceMappingStencilTexture = device.createTexture({
             label: "traceMappingStencilTexture",
@@ -1677,9 +1677,6 @@ ${RENDERER_DISPLAY_CODE}
                 let project = mat4.orthoZO(mat4.create(), -size, size, -size, size, size, -size);
                 let viewProjection = mat4.mul(mat4.create(), project, view);
                 this.state.setTraceViewProjection(count, depth, viewProjection);
-                // let nProject = mat4.orthoZO(mat4.create(), -size, size, -size, size, -size, size);
-                // let nViewProjection = mat4.mul(mat4.create(), nProject, view);
-                // this.state.setCameraViewProjection(nViewProjection);// fixme
             }
         }
     }

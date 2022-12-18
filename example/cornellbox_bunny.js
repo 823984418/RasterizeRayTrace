@@ -28,22 +28,22 @@ let device = await adapter.requestDevice({
 });
 
 let config = new RendererConfig();
-config.renderWidth = 1024;
-config.renderHeight = 1024;
-config.composeWidth = config.renderWidth;
-config.composeHeight = config.renderHeight;
-config.traceMappingSize = 800;
+config.renderWidth = 512;
+config.renderHeight = 512;
+config.composeWidth = config.renderWidth * 2;
+config.composeHeight = config.renderHeight * 2;
+config.traceMappingSize = 500;
 config.traceWordSize = 500;
 config.shadowTextureSize = 256;
 config.lightTextureSize = 128;
-config.traceCount = 2;
-config.traceDepth = 6;
+config.traceCount = 16;
+config.traceDepth = 1;
 config.lightSampleCount = 2;
 config.shadowNearDistance = 10;
 config.shadowFarDistance = 900;
 config.traceDepthBias = 0.005;
 config.shadowDepthBias = 0.001;
-config.debug_taa = false;
+config.debug_taa = true;
 config.taa_factor = 0.95;
 config.taa_maxDeltaZ = 0.005;
 config.taa_fastPower = 1 / 9;
@@ -84,37 +84,36 @@ mat4.copy(right.modelInfo.model.buffer, boxMatrix);
 renderer.models.push(right);
 
 let bunny = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/bunny/bunny.obj")).text());
-vec4.copy(bunny.modelInfo.emit.buffer, [0.6, 0.6, 0.6, 1]);
 vec4.copy(bunny.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
-let bunnyMatrix = mat4.create();
-mat4.translate(bunnyMatrix, bunnyMatrix, [375, 152, 250]);
-mat4.scale(bunnyMatrix, bunnyMatrix, [800, 800, 800]);
-mat4.rotateY(bunnyMatrix, bunnyMatrix, Math.PI);
-mat4.copy(bunny.modelInfo.model.buffer, bunnyMatrix);
-mat4.copy(bunny.modelInfo.normalModel.buffer, mat4FromMat3(mat3.normalFromMat4([], bunnyMatrix)));
 renderer.models.push(bunny);
 
-let pmx = await loadPmxTextureModel(renderer, new URL("../models/ningguang/凝光.pmx", document.baseURI));
-let matrix = mat4.create();
-mat4.translate(matrix, matrix, [310, 0, 280]);
-mat4.scale(matrix, matrix, [20, 20, 20]);
-pmx.forEach(model => {
-    mat4.copy(model.modelInfo.model.buffer, matrix);
-    mat4.copy(model.modelInfo.normalModel.buffer, mat4FromMat3(mat3.normalFromMat4([], matrix)));
+
+let x = 0;
+let y = 0;
+
+canvas.addEventListener("mousemove", event => {
+    x = event.offsetX / canvas.clientWidth - 0.5;
+    y = event.offsetY / canvas.clientHeight - 0.5;
 });
 
-let eye = vec3.add([], [278, 273, 300], vec3.rotateY([], vec3.rotateX([], [0, 0, -1100], [0, 0, 0], 0), [0, 0, 0], 0));
-renderer.setCamera(eye, [278, 273, 300], [0, 1, 0], Math.PI * 0.22, canvas.clientWidth / canvas.clientHeight, 500, 2000);
+renderer.onRenderListeners.push(() => {
+    let now = performance.now();
+    let bunnyMatrix = mat4.create();
+    mat4.translate(bunnyMatrix, bunnyMatrix, [300 + Math.sin(now * 0.001) * 100, 0, 250]);
+    mat4.scale(bunnyMatrix, bunnyMatrix, [1100, 1100, 1100]);
+    mat4.rotateY(bunnyMatrix, bunnyMatrix, Math.PI + now * 0.0005);
+    mat4.copy(bunny.modelInfo.model.buffer, bunnyMatrix);
+    mat4.copy(bunny.modelInfo.normalModel.buffer, mat4FromMat3(mat3.normalFromMat4([], bunnyMatrix)));
 
-document.querySelector("#info").innerText = "渲染中";
-renderer.begin();
+    let eye = vec3.add([], [278, 273, 300], vec3.rotateY([], vec3.rotateX([], [0, 0, -1100], [0, 0, 0], y * 4), [0, 0, 0], -x * 4));
+    renderer.setCamera(eye, [278, 273, 300], [0, 1, 0], Math.PI * 0.22, canvas.clientWidth / canvas.clientHeight, 500, 2000);
+});
 
 renderer.onRenderFinishListeners.push(() => {
-    if (renderer.lastTime - renderer.beginTime > 10000) {
-        renderer.end();
-        document.querySelector("#info").innerText =
-            `时间:${renderer.lastTime - renderer.beginTime}ms `
-            + `帧计数:${renderer.renderIndex}`;
-    }
+    document.querySelector("#info").innerText =
+        `时间:${(renderer.lastTime - renderer.beginTime) | 0}ms `
+        + `帧计数:${renderer.renderIndex}`;
 });
 
+
+renderer.begin();

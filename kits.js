@@ -70,3 +70,20 @@ export function mat4FromMat3(m3) {
         0, 0, 0, 1,
     ];
 }
+/**
+ * @param {GPUDevice} device
+ * @param {GPUBuffer} buffer
+ * @return {ArrayBuffer}
+ */
+export async function readBuffer(device, buffer) {
+    let copy = device.createBuffer({
+        size: buffer.size,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    });
+    let encoder = device.createCommandEncoder();
+    encoder.copyBufferToBuffer(buffer, 0, copy, 0, buffer.size);
+    device.queue.submit([encoder.finish()]);
+    await device.queue.onSubmittedWorkDone();
+    await copy.mapAsync(GPUMapMode.READ);
+    return copy.getMappedRange();
+}

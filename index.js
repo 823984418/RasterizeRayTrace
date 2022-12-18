@@ -8,7 +8,6 @@ import {loadObjLightModelWithoutNormal, loadObjStaticModelWithoutNormal} from ".
 window.addEventListener("error", event => {
     alert(`${event.message}
     ${event.error.stack}`);
-    // new Error().stack
 });
 
 /**
@@ -19,7 +18,6 @@ let canvas = document.querySelector("#targetCanvas");
 let gpu = navigator.gpu;
 let adapter = await gpu.requestAdapter({
     powerPreference: "high-performance",
-    // powerPreference: "low-power",
 });
 
 window.adapter = adapter;
@@ -127,11 +125,6 @@ mat4.copy(bunny.modelInfo.model.buffer, bunnyMatrix);
 mat4.copy(bunny.modelInfo.normalModel.buffer, mat4FromMat3(mat3.normalFromMat4([], bunnyMatrix)));
 renderer.models.push(bunny);
 
-// let begin = performance.now();
-// renderer.onRenderListeners.push(() => {
-//     mat4.translate(model2.modelInfo.model.buffer, mat4.create(), [Math.sin((performance.now() - begin) * 0.002) * 100 + 60, 0, 0]);
-// });
-
 let pmx = await loadPmxTextureModel(renderer, new URL("./models/ningguang/凝光.pmx", document.baseURI));
 
 
@@ -215,30 +208,6 @@ renderer.onRenderListeners.push(() => {
 console.log(renderer);
 window.renderer = renderer;
 
-/**
- * @param {GPUDevice} device
- * @param {GPUBuffer} buffer
- * @return {ArrayBuffer}
- */
-async function readBuffer(device, buffer) {
-    let copy = device.createBuffer({
-        size: buffer.size,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-    });
-    let encoder = device.createCommandEncoder();
-    encoder.copyBufferToBuffer(buffer, 0, copy, 0, buffer.size);
-    device.queue.submit([encoder.finish()]);
-    await device.queue.onSubmittedWorkDone();
-    await copy.mapAsync(GPUMapMode.READ);
-    return copy.getMappedRange();
-}
-
-// let a = new Uint32Array(await readBuffer(device, renderer.traceMappingBuffer));
-// let b = new Uint32Array(await readBuffer(device, renderer.traceDepthBuffer));
-// window.a = a;
-// window.b = a;
-// console.log(a);
-// console.log(b);
 
 
 canvas.addEventListener("mousemove", event => {
