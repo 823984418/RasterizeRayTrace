@@ -1,10 +1,8 @@
 import {Renderer, RendererConfig} from "./renderer.js";
-import {StaticModel} from "./static_model.js";
 import {mat3, mat4, vec3, vec4} from "./gl-matrix/index.js";
-import {TEST0, TEST1, TEST2, TESTP1, TESTP2, TESTP3, TESTP4} from "./test.js";
-import {LightModel} from "./light_model.js";
 import {loadPmxTextureModel} from "./load_pmx_model.js";
-import {MirrorModel} from "./mirror_model.js";
+import {mat4FromMat3} from "./kits.js";
+import {loadObjLightModelWithoutNormal, loadObjStaticModelWithoutNormal} from "./load_obj_model.js";
 
 
 window.addEventListener("error", event => {
@@ -12,37 +10,6 @@ window.addEventListener("error", event => {
     ${event.error.stack}`);
     // new Error().stack
 });
-
-function getNormal(position) {
-    let count = (position.length / 9) | 0;
-    let normalBuffer = new Float32Array(count * 9);
-    for (let face = 0; face < count; face++) {
-        let a = [position[face * 9], position[face * 9 + 1], position[face * 9 + 2]];
-        let b = [position[face * 9 + 3], position[face * 9 + 4], position[face * 9 + 5]];
-        let c = [position[face * 9 + 6], position[face * 9 + 7], position[face * 9 + 8]];
-        let n = vec3.cross(vec3.create(), vec3.sub(vec3.create(), b, a), vec3.sub(vec3.create(), c, b));
-        vec3.normalize(n, n);
-        for (let vertex = 0; vertex < 3; vertex++) {
-            normalBuffer[face * 9 + vertex * 3] = n[0];
-            normalBuffer[face * 9 + vertex * 3 + 1] = n[1];
-            normalBuffer[face * 9 + vertex * 3 + 2] = n[2];
-        }
-    }
-    return normalBuffer;
-}
-
-function getArea(position) {
-    let count = (position.length / 9) | 0;
-    let areaBuffer = new Float32Array(count);
-    for (let face = 0; face < count; face++) {
-        let a = [position[face * 9], position[face * 9 + 1], position[face * 9 + 2]];
-        let b = [position[face * 9 + 3], position[face * 9 + 4], position[face * 9 + 5]];
-        let c = [position[face * 9 + 6], position[face * 9 + 7], position[face * 9 + 8]];
-        let n = vec3.cross(vec3.create(), vec3.sub(vec3.create(), b, a), vec3.sub(vec3.create(), c, b));
-        areaBuffer[face] = vec3.len(n) / 2;
-    }
-    return areaBuffer;
-}
 
 /**
  *
@@ -115,72 +82,61 @@ context.configure({
 });
 renderer.context = context;
 
+let boxMatrix = mat4.create();
+mat4.scale(boxMatrix, boxMatrix, [1, 1.093, 1]);
+
 let useLight = true;
 if (useLight) {
-    let model0 = new LightModel(renderer);
-    model0.setData(TEST0, getNormal(TEST0), getArea(TEST0));
-    model0.lightPower = 1;
-    vec4.copy(model0.modelInfo.emit.buffer, [0, 0, 0, 0]);
-    vec4.copy(model0.modelInfo.light.buffer, [47, 38, 31, 1]);
-    vec4.copy(model0.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
-    renderer.models.push(model0);
+    let light = loadObjLightModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/light.obj")).text());
+    light.lightPower = 1;
+    vec4.copy(light.modelInfo.light.buffer, [47, 38, 31, 1]);
+    vec4.copy(light.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
+    mat4.copy(light.modelInfo.model.buffer, boxMatrix);
+    renderer.models.push(light);
 } else {
-    let model0 = new StaticModel(renderer);
-    model0.setData(TEST0, getNormal(TEST0));
-    vec4.copy(model0.modelInfo.emit.buffer, [47, 38, 31, 0]);
-    vec4.copy(model0.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
-    renderer.models.push(model0);
+    let light = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/light.obj")).text());
+    vec4.copy(light.modelInfo.emit.buffer, [47, 38, 31, 1]);
+    vec4.copy(light.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
+    mat4.copy(light.modelInfo.model.buffer, boxMatrix);
+    renderer.models.push(light);
 }
 
+let floor = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/floor.obj")).text());
+vec4.copy(floor.modelInfo.diffuse.buffer, [0.725, 0.71, 0.68, 1]);
+mat4.copy(floor.modelInfo.model.buffer, boxMatrix);
+renderer.models.push(floor);
 
-let model1 = new StaticModel(renderer);
-model1.setData(TEST1, getNormal(TEST1));
-vec4.copy(model1.modelInfo.emit.buffer, [0, 0, 0, 1]);
-vec4.copy(model1.modelInfo.diffuse.buffer, [0.725, 0.71, 0.68, 1]);
-renderer.models.push(model1);
+let left = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/left.obj")).text());
+vec4.copy(left.modelInfo.diffuse.buffer, [0.63, 0.06, 0.05, 1]);
+mat4.copy(left.modelInfo.model.buffer, boxMatrix);
+renderer.models.push(left);
 
-let modelP1 = new StaticModel(renderer);
-modelP1.setData(TESTP1, getNormal(TESTP1));
-vec4.copy(modelP1.modelInfo.emit.buffer, [0, 0, 0, 1]);
-vec4.copy(modelP1.modelInfo.diffuse.buffer, [0.725, 0.71, 0.68, 1]);
-renderer.models.push(modelP1);
-let modelP2 = new StaticModel(renderer);
-modelP2.setData(TESTP2, getNormal(TESTP2));
-vec4.copy(modelP2.modelInfo.emit.buffer, [0, 0, 0, 1]);
-vec4.copy(modelP2.modelInfo.diffuse.buffer, [0.725, 0.71, 0.68, 1]);
-renderer.models.push(modelP2);
-let modelP3 = new StaticModel(renderer);
-modelP3.setData(TESTP3, getNormal(TESTP3));
-vec4.copy(modelP3.modelInfo.emit.buffer, [0, 0, 0, 1]);
-vec4.copy(modelP3.modelInfo.diffuse.buffer, [0.63, 0.06, 0.05, 1]);
-renderer.models.push(modelP3);
-let modelP4 = new StaticModel(renderer);
-modelP4.setData(TESTP4, getNormal(TESTP4));
-vec4.copy(modelP4.modelInfo.emit.buffer, [0, 0, 0, 1]);
-vec4.copy(modelP4.modelInfo.diffuse.buffer, [0.14, 0.45, 0.091, 1]);
-renderer.models.push(modelP4);
+let right = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/right.obj")).text());
+vec4.copy(right.modelInfo.diffuse.buffer, [0.14, 0.45, 0.091, 1]);
+mat4.copy(right.modelInfo.model.buffer, boxMatrix);
+renderer.models.push(right);
 
-let model2 = new StaticModel(renderer);
-model2.setData(TEST2, getNormal(TEST2));
-let bunny = mat4.create();
-mat4.translate(bunny, bunny, [300, 180, 100]);
-mat4.scale(bunny, bunny, [0.5, 0.5, 0.5]);
-mat4.copy(model2.modelInfo.model.buffer, bunny);
-vec4.copy(model2.modelInfo.emit.buffer, [0.6, 0.6, 0.6, 1]);
-vec4.copy(model2.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
-renderer.models.push(model2);
+let bunny = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/bunny/bunny.obj")).text());
+vec4.copy(bunny.modelInfo.emit.buffer, [0.6, 0.6, 0.6, 1]);
+vec4.copy(bunny.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
+let bunnyMatrix = mat4.create();
+mat4.translate(bunnyMatrix, bunnyMatrix, [375, 152, 250]);
+mat4.scale(bunnyMatrix, bunnyMatrix, [800, 800, 800]);
+mat4.rotateY(bunnyMatrix, bunnyMatrix, Math.PI);
+mat4.copy(bunny.modelInfo.model.buffer, bunnyMatrix);
+mat4.copy(bunny.modelInfo.normalModel.buffer, mat4FromMat3(mat3.normalFromMat4([], bunnyMatrix)));
+renderer.models.push(bunny);
 
 // let begin = performance.now();
 // renderer.onRenderListeners.push(() => {
 //     mat4.translate(model2.modelInfo.model.buffer, mat4.create(), [Math.sin((performance.now() - begin) * 0.002) * 100 + 60, 0, 0]);
 // });
 
-let pmx = await loadPmxTextureModel(renderer, new URL("ningguang/凝光.pmx", document.baseURI));
+let pmx = await loadPmxTextureModel(renderer, new URL("./models/ningguang/凝光.pmx", document.baseURI));
 
 
 let x = 0;
 let y = 0;
-
 
 let matrix = mat4.create();
 mat4.translate(matrix, matrix, [250, 0, 280]);
@@ -190,27 +146,10 @@ let begin = performance.now();
 if (config.debug_taa) {
     mat4.rotateY(matrix, matrix, (performance.now() - begin) * 0.0001);
 }
-let nm = mat3.normalFromMat4([], matrix);
+
 pmx.forEach(model => {
     mat4.copy(model.modelInfo.model.buffer, matrix);
-    let nn = model.modelInfo.normalModel.buffer;
-    nn[0] = nm[0];
-    nn[1] = nm[1];
-    nn[2] = nm[2];
-    nn[3] = 0;
-    nn[4] = nm[3];
-    nn[5] = nm[4];
-    nn[6] = nm[5];
-    nn[7] = 0;
-    nn[8] = nm[6];
-    nn[9] = nm[7];
-    nn[10] = nm[8];
-    nn[11] = 0;
-    nn[12] = 0;
-    nn[13] = 0;
-    nn[14] = 0;
-    nn[15] = 0;
-
+    mat4.copy(model.modelInfo.normalModel.buffer, mat4FromMat3(mat3.normalFromMat4([], matrix)));
 });
 
 function updateCamera() {
