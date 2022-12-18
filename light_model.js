@@ -8,7 +8,7 @@ import {
     TRACE_DEFINE,
     TRACE_DEPTH_DEFINE
 } from "./renderer_interface.js";
-import {mat4, vec3, vec4} from "./gl-matrix/index.js";
+import {mat3, mat4, vec3, vec4} from "./gl-matrix/index.js";
 
 class LightInfo extends BufferStruct {
     static WGSL = "struct LightInfo {normalAndFactor: vec4<f32>}";
@@ -743,7 +743,7 @@ ${LIGHT_MODEL_TRACE_CODE}
         let normalVec4 = [...normal, 0];
         vec4.transformMat4(normalVec4, normalVec4, this.modelInfo.normalModel.buffer);
         vec3.normalize(normal, normalVec4);
-        let fa = factor * this.areaSum * 0.7;
+        let fa = factor * this.areaSum;
         vec4.copy(this.lightInfo.normalAndFactor.buffer, [normal[0], normal[1], normal[2], fa]);
         this.renderer.device.queue.writeBuffer(this.lightInfoBuffer, 0, this.lightInfo.buffer);
         pass.setBindGroup(0, this.lightBindGroup0);
