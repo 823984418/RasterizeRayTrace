@@ -302,8 +302,9 @@ export class TextureModel extends Model {
 
     /**
      * @param {Renderer} renderer
+     * @param {GPUCullMode} cullMode
      */
-    constructor(renderer) {
+    constructor(renderer, cullMode = "back") {
         super(renderer);
         this.modelInfo = new TextureModelInfo();
         this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.size);
@@ -412,6 +413,9 @@ ${STATIC_MODEL_TRACE_CODE}
                 depthWriteEnabled: true,
                 depthCompare: "less",
             },
+            primitive: {
+                cullMode: cullMode,
+            },
         });
         this.cameraDepthPipeline = device.createRenderPipeline({
             label: "cameraDepthPipeline",
@@ -435,6 +439,9 @@ ${STATIC_MODEL_TRACE_CODE}
                 format: "depth32float",
                 depthWriteEnabled: true,
                 depthCompare: "less",
+            },
+            primitive: {
+                cullMode: cullMode,
             },
         });
         this.cameraPipeline = device.createRenderPipeline({
@@ -465,6 +472,9 @@ ${STATIC_MODEL_TRACE_CODE}
                 depthWriteEnabled: false,
                 depthCompare: "equal",
             },
+            primitive: {
+                cullMode: cullMode,
+            },
         });
         this.traceDepthPipeline = device.createRenderPipeline({
             layout: device.createPipelineLayout({
@@ -487,6 +497,9 @@ ${STATIC_MODEL_TRACE_CODE}
                 format: "stencil8",
                 depthWriteEnabled: false,
                 depthCompare: "always",
+            },
+            primitive: {
+                cullMode: cullMode,
             },
         });
         this.tracePipeline = device.createRenderPipeline({
@@ -511,6 +524,9 @@ ${STATIC_MODEL_TRACE_CODE}
                 format: "stencil8",
                 depthWriteEnabled: false,
                 depthCompare: "always",
+            },
+            primitive: {
+                cullMode: cullMode,
             },
         });
 

@@ -290,8 +290,9 @@ export class MirrorModel extends Model {
 
     /**
      * @param {Renderer} renderer
+     * @param {GPUCullMode} cullMode
      */
-    constructor(renderer) {
+    constructor(renderer, cullMode = "back") {
         super(renderer);
         this.modelInfo = new MirrorModelInfo();
         this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.size);
@@ -377,6 +378,9 @@ ${MIRROR_MODEL_TRACE_CODE}
                 depthWriteEnabled: true,
                 depthCompare: "less",
             },
+            primitive: {
+                cullMode: cullMode,
+            },
         });
         this.cameraDepthPipeline = device.createRenderPipeline({
             label: "cameraDepthPipeline",
@@ -400,6 +404,9 @@ ${MIRROR_MODEL_TRACE_CODE}
                 format: "depth32float",
                 depthWriteEnabled: true,
                 depthCompare: "less",
+            },
+            primitive: {
+                cullMode: cullMode,
             },
         });
         this.cameraPipeline = device.createRenderPipeline({
@@ -430,6 +437,9 @@ ${MIRROR_MODEL_TRACE_CODE}
                 depthWriteEnabled: false,
                 depthCompare: "equal",
             },
+            primitive: {
+                cullMode: cullMode,
+            },
         });
         this.traceDepthPipeline = device.createRenderPipeline({
             layout: device.createPipelineLayout({
@@ -452,6 +462,9 @@ ${MIRROR_MODEL_TRACE_CODE}
                 format: "stencil8",
                 depthWriteEnabled: false,
                 depthCompare: "always",
+            },
+            primitive: {
+                cullMode: cullMode,
             },
         });
         this.tracePipeline = device.createRenderPipeline({
@@ -476,6 +489,9 @@ ${MIRROR_MODEL_TRACE_CODE}
                 format: "stencil8",
                 depthWriteEnabled: false,
                 depthCompare: "always",
+            },
+            primitive: {
+                cullMode: cullMode,
             },
         });
 

@@ -1,4 +1,4 @@
-import {PmxReader, PmxVisitor} from "./PmxVisitor.js";
+import {MaterialFlags, PmxReader, PmxVisitor} from "./PmxVisitor.js";
 import {TextureModel} from "./texture_model.js";
 import {createRGBA8UNormConstantTextureView} from "./kits.js";
 
@@ -62,7 +62,7 @@ class PmxTextureModelVisitor extends PmxVisitor {
     }
 
     /**
-     * @type {{localName:string, diffuse: number[], texture: number, elementCount: number}[]}
+     * @type {{localName:string, diffuse: number[], texture: number, elementCount: number, cullMode: GPUCullMode}[]}
      */
     materials;
 
@@ -76,6 +76,7 @@ class PmxTextureModelVisitor extends PmxVisitor {
             diffuse,
             texture,
             elementCount,
+            cullMode: (flags & MaterialFlags.NO_CULL) ? "none" : "back",
         };
     }
 
@@ -131,7 +132,7 @@ export async function loadPmxTextureModel(renderer, url) {
     let sum = 0;
     let zeroTexture = createRGBA8UNormConstantTextureView(device, [0, 0, 0, 255]);
     for (let material of visitor.materials) {
-        let model = new TextureModel(renderer);
+        let model = new TextureModel(renderer, material.cullMode);
         model.positionBuffer = positionBuffer;
         model.normalBuffer = normalBuffer;
         model.uvBuffer = uvBuffer;

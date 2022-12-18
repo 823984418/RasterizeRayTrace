@@ -345,8 +345,9 @@ fn fragment_main(input: FragmentInput) {
 export class LightModel extends Model {
     /**
      * @param {Renderer} renderer
+     * @param {GPUCullMode} cullMode
      */
-    constructor(renderer) {
+    constructor(renderer, cullMode = "back") {
         super(renderer);
         this.modelInfo = new LightModelInfo();
         this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.size);
@@ -480,6 +481,9 @@ ${LIGHT_MODEL_TRACE_CODE}
                 depthWriteEnabled: true,
                 depthCompare: "less",
             },
+            primitive: {
+                cullMode: cullMode,
+            },
         });
         this.cameraDepthPipeline = device.createRenderPipeline({
             label: "cameraDepthPipeline",
@@ -503,6 +507,9 @@ ${LIGHT_MODEL_TRACE_CODE}
                 format: "depth32float",
                 depthWriteEnabled: true,
                 depthCompare: "less",
+            },
+            primitive: {
+                cullMode: cullMode,
             },
         });
         this.cameraPipeline = device.createRenderPipeline({
@@ -533,6 +540,9 @@ ${LIGHT_MODEL_TRACE_CODE}
                 depthWriteEnabled: false,
                 depthCompare: "equal",
             },
+            primitive: {
+                cullMode: cullMode,
+            },
         });
         this.traceDepthPipeline = device.createRenderPipeline({
             layout: device.createPipelineLayout({
@@ -555,6 +565,9 @@ ${LIGHT_MODEL_TRACE_CODE}
                 format: "stencil8",
                 depthWriteEnabled: false,
                 depthCompare: "always",
+            },
+            primitive: {
+                cullMode: cullMode,
             },
         });
         this.tracePipeline = device.createRenderPipeline({
@@ -579,6 +592,9 @@ ${LIGHT_MODEL_TRACE_CODE}
                 format: "stencil8",
                 depthWriteEnabled: false,
                 depthCompare: "always",
+            },
+            primitive: {
+                cullMode: cullMode,
             },
         });
 
