@@ -272,7 +272,7 @@ export class StaticModel extends Model {
      * @param {Renderer} renderer
      * @param {GPUCullMode} cullMode
      */
-    constructor(renderer, cullMode = "back") {
+    constructor(renderer, cullMode = "none") {
         super(renderer);
         this.modelInfo = new StaticModelInfo();
         this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.size);

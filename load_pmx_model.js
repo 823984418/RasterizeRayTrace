@@ -132,7 +132,7 @@ export async function loadPmxTextureModel(renderer, url) {
     let sum = 0;
     let zeroTexture = createRGBA8UNormConstantTextureView(device, [0, 0, 0, 255]);
     for (let material of visitor.materials) {
-        let model = new TextureModel(renderer, material.cullMode);
+        let model = new TextureModel(renderer);
         model.positionBuffer = positionBuffer;
         model.normalBuffer = normalBuffer;
         model.uvBuffer = uvBuffer;

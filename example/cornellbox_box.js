@@ -1,5 +1,5 @@
 import {Renderer, RendererConfig} from "../renderer.js";
-import {vec3, vec4} from "../gl-matrix/index.js";
+import {mat4, vec3, vec4} from "../gl-matrix/index.js";
 import {loadObjLightModelWithoutNormal, loadObjStaticModelWithoutNormal} from "../load_obj_model.js";
 
 /**

@@ -304,7 +304,7 @@ export class TextureModel extends Model {
      * @param {Renderer} renderer
      * @param {GPUCullMode} cullMode
      */
-    constructor(renderer, cullMode = "back") {
+    constructor(renderer, cullMode = "none") {
         super(renderer);
         this.modelInfo = new TextureModelInfo();
         this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.size);

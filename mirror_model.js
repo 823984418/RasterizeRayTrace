@@ -292,7 +292,7 @@ export class MirrorModel extends Model {
      * @param {Renderer} renderer
      * @param {GPUCullMode} cullMode
      */
-    constructor(renderer, cullMode = "back") {
+    constructor(renderer, cullMode = "none") {
         super(renderer);
         this.modelInfo = new MirrorModelInfo();
         this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.size);
