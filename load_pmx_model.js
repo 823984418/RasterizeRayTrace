@@ -96,7 +96,7 @@ export async function loadPmxTextureModel(renderer, url) {
     new PmxReader(pmx).accept(visitor);
 
     for (let texObj of visitor.textures) {
-        let file = await (await fetch(new URL(encodeURI(texObj.path), urlBase))).blob();
+        let file = await (await fetch(new URL(encodeURI(texObj.path).replaceAll("\\", "/"), urlBase))).blob();
         let bitmap = (await createImageBitmap(file, {}));
         let texture = device.createTexture({
             label: "loadPmxTextureModel texture",
