@@ -85,36 +85,36 @@ mat4.scale(boxMatrix, boxMatrix, [1, 1.093, 1]);
 
 let useLight = true;
 if (useLight) {
-    let light = loadObjLightModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/light.obj")).text());
+    let light = loadObjLightModelWithoutNormal(renderer, await (await fetch("/models/cornellbox/light.obj")).text());
     light.lightPower = 1;
     vec4.copy(light.modelInfo.light.buffer, [47, 38, 31, 1]);
     vec4.copy(light.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
     mat4.copy(light.modelInfo.model.buffer, boxMatrix);
     renderer.models.push(light);
 } else {
-    let light = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/light.obj")).text());
+    let light = loadObjStaticModelWithoutNormal(renderer, await (await fetch("/models/cornellbox/light.obj")).text());
     vec4.copy(light.modelInfo.emit.buffer, [47, 38, 31, 1]);
     vec4.copy(light.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
     mat4.copy(light.modelInfo.model.buffer, boxMatrix);
     renderer.models.push(light);
 }
 
-let floor = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/floor.obj")).text());
+let floor = loadObjStaticModelWithoutNormal(renderer, await (await fetch("/models/cornellbox/floor.obj")).text());
 vec4.copy(floor.modelInfo.diffuse.buffer, [0.725, 0.71, 0.68, 1]);
 mat4.copy(floor.modelInfo.model.buffer, boxMatrix);
 renderer.models.push(floor);
 
-let left = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/left.obj")).text());
+let left = loadObjStaticModelWithoutNormal(renderer, await (await fetch("/models/cornellbox/left.obj")).text());
 vec4.copy(left.modelInfo.diffuse.buffer, [0.63, 0.06, 0.05, 1]);
 mat4.copy(left.modelInfo.model.buffer, boxMatrix);
 renderer.models.push(left);
 
-let right = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/cornellbox/right.obj")).text());
+let right = loadObjStaticModelWithoutNormal(renderer, await (await fetch("/models/cornellbox/right.obj")).text());
 vec4.copy(right.modelInfo.diffuse.buffer, [0.14, 0.45, 0.091, 1]);
 mat4.copy(right.modelInfo.model.buffer, boxMatrix);
 renderer.models.push(right);
 
-let bunny = loadObjStaticModelWithoutNormal(renderer, await (await fetch("../models/bunny/bunny.obj")).text());
+let bunny = loadObjStaticModelWithoutNormal(renderer, await (await fetch("/models/bunny/bunny.obj")).text());
 vec4.copy(bunny.modelInfo.emit.buffer, [0.6, 0.6, 0.6, 1]);
 vec4.copy(bunny.modelInfo.diffuse.buffer, [0.9, 0.9, 0.9, 1]);
 let bunnyMatrix = mat4.create();
@@ -125,7 +125,7 @@ mat4.copy(bunny.modelInfo.model.buffer, bunnyMatrix);
 mat4.copy(bunny.modelInfo.normalModel.buffer, mat4FromMat3(mat3.normalFromMat4([], bunnyMatrix)));
 renderer.models.push(bunny);
 
-let pmx = await loadPmxTextureModel(renderer, new URL("./models/ningguang/凝光.pmx", document.baseURI));
+let pmx = await loadPmxTextureModel(renderer, new URL("/models/ningguang/凝光.pmx", document.baseURI));
 
 
 let x = 0;
