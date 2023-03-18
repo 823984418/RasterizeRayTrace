@@ -40,25 +40,25 @@ adapter.requestAdapterInfo().then(info => {
 });
 
 let config = new RendererConfig();
-config.renderWidth = 1024;
-config.renderHeight = 1024;
+config.renderWidth = 512;
+config.renderHeight = 512;
 config.composeWidth = config.renderWidth;
 config.composeHeight = config.renderHeight;
-config.traceMappingSize = 800;
+config.traceMappingSize = 500;
 config.traceWordSize = 500;
 config.shadowTextureSize = 256;
 config.lightTextureSize = 128;
-config.traceCount = 4;
-config.traceDepth = 2;
-config.lightSampleCount = 2;
+config.traceCount = 40;
+config.traceDepth = 1;
+config.lightSampleCount = 1;
 config.shadowNearDistance = 10;
 config.shadowFarDistance = 900;
 config.traceDepthBias = 0.005;
 config.shadowDepthBias = 0.001;
-config.debug_taa = false;
-config.taa_factor = 0.95;
+config.debug_taa = true;
+config.taa_factor = 0.93;
 config.taa_maxDeltaZ = 0.005;
-config.taa_fastPower = 1 / 9;
+config.taa_fastPower = 1 / 2;
 let renderer = new Renderer(device, config);
 renderer.onRenderFinishListeners.push(() => {
 

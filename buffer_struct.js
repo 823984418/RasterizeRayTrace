@@ -104,6 +104,9 @@ export class BufferStruct extends BufferValue {
         }
     }
 
+    use_size() {
+        return (((this.size + 15) / 16) | 0) * 16;
+    }
 }
 
 export class BufferArray extends BufferStruct {

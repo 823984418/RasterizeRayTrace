@@ -295,7 +295,7 @@ export class MirrorModel extends Model {
     constructor(renderer, cullMode = "none") {
         super(renderer);
         this.modelInfo = new MirrorModelInfo();
-        this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.size);
+        this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.use_size());
         this.modelInfo.allocate(this.modelInfo.buffer, 0);
 
         let device = renderer.device;
@@ -332,7 +332,7 @@ ${MIRROR_MODEL_TRACE_CODE}
 
         this.modelInfoBuffer = device.createBuffer({
             label: "modelInfoBuffer",
-            size: this.modelInfo.size,
+            size: this.modelInfo.use_size(),
             usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
         });
         let bindGroup1Layout = device.createBindGroupLayout({

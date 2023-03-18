@@ -444,7 +444,7 @@ export class Renderer {
         this.config = Object.freeze(config);
         this.configWGSL = config.toWGSL();
         this.state = new RendererInfoBufferStruct(config);
-        this.state.buffer = new ArrayBuffer(this.state.size);
+        this.state.buffer = new ArrayBuffer(this.state.use_size());
         this.state.allocate(this.state.buffer, 0);
         this.state.traceInfoArray2.forEach(i => {
             if (i.length !== 0) {
@@ -479,7 +479,7 @@ ${RENDERER_DISPLAY_CODE}
 
         this.stateBuffer = device.createBuffer({
             label: "stateBuffer",
-            size: this.state.size,
+            size: this.state.use_size(),
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
         this.lightTexture = device.createTexture({
@@ -1041,7 +1041,7 @@ ${RENDERER_DISPLAY_CODE}
                 resource: {
                     buffer: this.stateBuffer,
                     offset: this.state.shadowInfoArray2[count][cube].offset,
-                    size: this.state.shadowInfoArray2[count][cube].size,
+                    size: this.state.shadowInfoArray2[count][cube].use_size(),
                 },
             }],
         })));
@@ -1053,7 +1053,7 @@ ${RENDERER_DISPLAY_CODE}
                 resource: {
                     buffer: this.stateBuffer,
                     offset: this.state.cameraInfo.offset,
-                    size: this.state.cameraInfo.size,
+                    size: this.state.cameraInfo.use_size(),
                 },
             }],
         });
@@ -1065,7 +1065,7 @@ ${RENDERER_DISPLAY_CODE}
                 resource: {
                     buffer: this.stateBuffer,
                     offset: this.state.cameraInfo.offset,
-                    size: this.state.cameraInfo.size,
+                    size: this.state.cameraInfo.use_size(),
                 },
             }, {
                 binding: 1,
@@ -1095,7 +1095,7 @@ ${RENDERER_DISPLAY_CODE}
                 resource: {
                     buffer: this.stateBuffer,
                     offset: this.state.traceInfoArray2[count][depth].offset,
-                    size: this.state.traceInfoArray2[count][depth].size,
+                    size: this.state.traceInfoArray2[count][depth].use_size(),
                 }
             }, {
                 binding: 1,
@@ -1113,7 +1113,7 @@ ${RENDERER_DISPLAY_CODE}
                 resource: {
                     buffer: this.stateBuffer,
                     offset: this.state.traceInfoArray2[count][depth].offset,
-                    size: this.state.traceInfoArray2[count][depth].size,
+                    size: this.state.traceInfoArray2[count][depth].use_size(),
                 }
             }, {
                 binding: 1,
@@ -1141,7 +1141,7 @@ ${RENDERER_DISPLAY_CODE}
                 resource: {
                     buffer: this.stateBuffer,
                     offset: this.state.traceInfoArray2[count][depth].offset,
-                    size: this.state.traceInfoArray2[count][depth].size,
+                    size: this.state.traceInfoArray2[count][depth].use_size(),
                 }
             }, {
                 binding: 1,
@@ -1193,7 +1193,7 @@ ${RENDERER_DISPLAY_CODE}
                 resource: {
                     buffer: this.stateBuffer,
                     offset: this.state.composeInfo.offset,
-                    size: this.state.composeInfo.size,
+                    size: this.state.composeInfo.use_size(),
                 },
             }, {
                 binding: 1,
@@ -1766,6 +1766,7 @@ ${RENDERER_DISPLAY_CODE}
         if (this.config.debug_clearCameraFactor) {
             this.cameraFactorTexture2DViewArray.forEach(v => {
                 commandEncoder.beginRenderPass({
+                    label: "clearCameraFactor",
                     colorAttachments: [{
                         view: v,
                         loadOp: "clear",
@@ -1855,6 +1856,7 @@ ${RENDERER_DISPLAY_CODE}
                 traceDepthPass.end();
 
                 commandEncoder.beginRenderPass({
+                    label: "clearTracePosition",
                     colorAttachments: [{
                         view: arrayCycleIndex(this.tracePositionTexture2DViewArray, depth + 1),
                         loadOp: "clear",
@@ -1909,7 +1911,9 @@ ${RENDERER_DISPLAY_CODE}
                 label: "display",
                 colorAttachments: [
                     {
-                        view: this.context.getCurrentTexture().createView(),
+                        view: this.context.getCurrentTexture().createView({
+                            label: "context texture view",
+                        }),
                         loadOp: "clear",
                         storeOp: "store",
                     }

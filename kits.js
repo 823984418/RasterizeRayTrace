@@ -59,7 +59,9 @@ export function createRGBA8UNormConstantTextureView(device, value) {
         dimension: "2d",
     });
     device.queue.writeTexture({texture: texture}, new Uint8Array(value), {}, [1, 1, 1]);
-    return texture.createView();
+    return texture.createView({
+        label: "rgba8unorm texture view",
+    });
 }
 
 export function mat4FromMat3(m3) {
@@ -70,6 +72,7 @@ export function mat4FromMat3(m3) {
         0, 0, 0, 1,
     ];
 }
+
 /**
  * @param {GPUDevice} device
  * @param {GPUBuffer} buffer

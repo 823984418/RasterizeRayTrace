@@ -230,7 +230,7 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
             let targetI: vec4<f32> = cameraInfo.directionToArray[i];
             var factor = vec3<f32>(0);
             if (targetI.w == 0) {
-                let tc = dot(normalize(targetI.xyz), normal);
+                let tc = dot(targetI.xyz, normal);
                 if ((tc > 0) == (c > 0)) {
                     factor = modelInfo.diffuse.rgb * abs(tc) * 4 / f32(traceCount);
                 }
@@ -350,11 +350,11 @@ export class LightModel extends Model {
     constructor(renderer, cullMode = "none") {
         super(renderer);
         this.modelInfo = new LightModelInfo();
-        this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.size);
+        this.modelInfo.buffer = new ArrayBuffer(this.modelInfo.use_size());
         this.modelInfo.allocate(this.modelInfo.buffer, 0);
 
         this.lightInfo = new LightInfo();
-        this.lightInfo.buffer = new ArrayBuffer(this.lightInfo.size);
+        this.lightInfo.buffer = new ArrayBuffer(this.lightInfo.use_size());
         this.lightInfo.allocate(this.lightInfo.buffer, 0);
 
         let device = renderer.device;
@@ -398,12 +398,12 @@ ${LIGHT_MODEL_TRACE_CODE}
 
         this.modelInfoBuffer = device.createBuffer({
             label: "modelInfoBuffer",
-            size: this.modelInfo.size,
+            size: this.modelInfo.use_size(),
             usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
         });
         this.lightInfoBuffer = device.createBuffer({
             label: "lightInfoBuffer",
-            size: this.lightInfo.size,
+            size: this.lightInfo.use_size(),
             usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
         });
         let lightBindGroup0Layout = device.createBindGroupLayout({

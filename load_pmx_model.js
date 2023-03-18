@@ -99,6 +99,7 @@ export async function loadPmxTextureModel(renderer, url) {
         let file = await (await fetch(new URL(encodeURI(texObj.path), urlBase))).blob();
         let bitmap = (await createImageBitmap(file, {}));
         let texture = device.createTexture({
+            label: "loadPmxTextureModel texture",
             size: [bitmap.width, bitmap.height, 1],
             format: "rgba8unorm",
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
@@ -140,7 +141,9 @@ export async function loadPmxTextureModel(renderer, url) {
         model.firstIndex = sum;
         model.indexCount = material.elementCount;
 
-        let diffuseTexture = visitor.textures[material.texture].texture.createView();
+        let diffuseTexture = visitor.textures[material.texture].texture.createView({
+            label: "loadPmxTextureModel texture view",
+        });
         // console.log(material.localName);
         model.setTexture(diffuseTexture, zeroTexture);
         models.push(model);
