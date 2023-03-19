@@ -595,8 +595,8 @@ ${RENDERER_DISPLAY_CODE}
 
         this.lightSampler = device.createSampler({
             label: "lightSampler",
-            minFilter: "nearest",
-            magFilter: "nearest",
+            minFilter: "linear",
+            magFilter: "linear",
         });
         this.shadowSampler = device.createSampler({
             label: "shadowSampler",
@@ -866,7 +866,7 @@ ${RENDERER_DISPLAY_CODE}
                 binding: 1,
                 visibility: GPUShaderStage.FRAGMENT,
                 texture: {
-                    sampleType: "unfilterable-float",
+                    sampleType: "float",
                     viewDimension: "cube-array",
                 },
             }, {
@@ -895,7 +895,7 @@ ${RENDERER_DISPLAY_CODE}
                 binding: 5,
                 visibility: GPUShaderStage.FRAGMENT,
                 sampler: {
-                    type: "non-filtering",
+                    type: "filtering",
                 },
             }, {
                 binding: 6,
@@ -972,7 +972,7 @@ ${RENDERER_DISPLAY_CODE}
                 binding: 4,
                 visibility: GPUShaderStage.FRAGMENT,
                 texture: {
-                    sampleType: "unfilterable-float",
+                    sampleType: "float",
                     viewDimension: "cube-array",
                 },
             }, {
@@ -1024,7 +1024,7 @@ ${RENDERER_DISPLAY_CODE}
                 binding: 11,
                 visibility: GPUShaderStage.FRAGMENT,
                 sampler: {
-                    type: "non-filtering",
+                    type: "filtering",
                 },
             }, {
                 binding: 12,
