@@ -182,8 +182,9 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
                 }
             }
         }
+        lastPosition(pos, input.lastPosition, input.facing);
     }
-    return FragmentOutput(vec4(color, 1.0), vec4<f32>(input.worldPosition, 1), vec4<f32>(input.lastPosition, f32(input.facing) * 2 - 1), vec4(appendColor, 1));
+    return FragmentOutput(vec4(color, 1.0), vec4<f32>(input.worldPosition, 1), vec4(appendColor, 1));
 }
 `;
 
@@ -427,7 +428,6 @@ ${MIRROR_MODEL_TRACE_CODE}
                 entryPoint: "fragment_main",
                 targets: [
                     {format: "rgba16float"},
-                    {format: "rgba32float"},
                     {format: "rgba32float"},
                     {format: "rgba16float"},
                 ],

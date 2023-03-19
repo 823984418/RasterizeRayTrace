@@ -524,7 +524,7 @@ ${RENDERER_DISPLAY_CODE}
             size: [config.renderWidth, config.renderHeight, 1],
             dimension: "2d",
             format: "rgba32float",
-            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
         });
         this.cameraFactorTexture = device.createTexture({
             label: "cameraFactorTexture",
@@ -903,6 +903,14 @@ ${RENDERER_DISPLAY_CODE}
                 sampler: {
                     type: "non-filtering",
                 },
+            }, {
+                binding: 7,
+                visibility: GPUShaderStage.FRAGMENT,
+                storageTexture: {
+                    access: "write-only",
+                    format: "rgba32float",
+                    viewDimension: "2d",
+                }
             }],
         });
         this.traceDepthBindGroup0Layout = device.createBindGroupLayout({
@@ -1087,6 +1095,9 @@ ${RENDERER_DISPLAY_CODE}
             }, {
                 binding: 6,
                 resource: this.shadowSampler,
+            }, {
+                binding: 7,
+                resource: this.cameraLastPositionTexture2DView,
             }],
         }));
         this.traceMappingBindGroup0Array2 = array(config.traceCount, count => array(config.traceDepth, depth => device.createBindGroup({
@@ -1786,10 +1797,6 @@ ${RENDERER_DISPLAY_CODE}
                 storeOp: "store",
             }, {
                 view: this.cameraPositionTexture2DView,
-                loadOp: "clear",
-                storeOp: "store",
-            }, {
-                view: this.cameraLastPositionTexture2DView,
                 loadOp: "clear",
                 storeOp: "store",
             }, {

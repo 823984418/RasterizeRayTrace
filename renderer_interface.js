@@ -60,6 +60,15 @@ var lightSampler: sampler;
 @group(0) @binding(6)
 var shadowSampler: sampler;
 
+@group(0) @binding(7)
+var lastPositionTextureOutput: texture_storage_2d<rgba32float, write>;
+
+fn lastPosition(pos: vec2<i32>, position: vec3<f32>, facing: bool) {
+    if (debug_taa) {
+        textureStore(lastPositionTextureOutput, pos, vec4<f32>(position, f32(facing) * 2 - 1));
+    }
+}
+
 fn getShadow(light: i32, position: vec3<f32>) -> vec3<f32> {
     let lightPositionAndFactor = cameraInfo.lightArray[light];
     if (lightPositionAndFactor.w == 0) {
@@ -101,9 +110,6 @@ struct FragmentOutput {
     position: vec4<f32>,
     
     @location(2)
-    lastPosition: vec4<f32>,
-    
-    @location(3)
     appendColor: vec4<f32>,
     
 }
