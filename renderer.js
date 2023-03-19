@@ -41,17 +41,17 @@ function randomDirection(dir, ver) {
 
 export class ShadowInfoStruct extends BufferStruct {
 
-    static WGSL = "struct ShadowInfo {lightPosition: vec4<f32>, viewProjection: mat4x4<f32>}";
+    static WGSL = "struct ShadowInfo {lightPositionAndFactor: vec4<f32>, viewProjection: mat4x4<f32>}";
 
     constructor() {
         super();
         this.setStruct([
-            this.lightPosition,
+            this.lightPositionAndFactor,
             this.viewProjection,
         ], 256);
     }
 
-    lightPosition = new BufferVec4F32();
+    lightPositionAndFactor = new BufferVec4F32();
 
     viewProjection = new BufferMat4x4F32();
 
@@ -172,8 +172,8 @@ export class RendererInfoBufferStruct extends BufferStruct {
      */
     composeInfo;
 
-    setLightPosition(light, position) {
-        this.shadowInfoArray2[light].forEach(i => vec4.copy(i.lightPosition.buffer, position));
+    setLightPositionAndFactor(light, position) {
+        this.shadowInfoArray2[light].forEach(i => vec4.copy(i.lightPositionAndFactor.buffer, position));
         vec4.copy(this.cameraInfo.lightArray.array[light].buffer, position);
         this.traceInfoArray2.forEach(i => i.forEach(j => vec4.copy(j.lightArray.array[light].buffer, position)));
     }
@@ -232,6 +232,7 @@ export class RendererConfig {
     taa_factor = 0.98;
     taa_maxDeltaZ = 0.01;
     taa_fastPower = 0.3;
+    light_factor = 50.0;
 
     toWGSL() {
         return `// WGSL
@@ -254,6 +255,7 @@ const debug_taa: bool = ${!!this.debug_taa};
 const taa_factor: f32 = ${this.taa_factor};
 const taa_maxDeltaZ: f32 = ${this.taa_maxDeltaZ};
 const taa_fastPower: f32 = ${this.taa_fastPower};
+const light_factor: f32 = ${this.light_factor};
 const PI: f32 = 3.1415916;
 
 `;
@@ -486,7 +488,7 @@ ${RENDERER_DISPLAY_CODE}
             label: "lightTexture",
             size: [config.lightTextureSize, config.lightTextureSize, 6 * config.lightSampleCount],
             dimension: "2d",
-            format: "rgba32float",
+            format: "rgba8unorm",
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
         });
         this.shadowTexture = device.createTexture({
@@ -1699,16 +1701,16 @@ ${RENDERER_DISPLAY_CODE}
             });
 
             if (modelIndex !== -1) {
-                let position = this.models[modelIndex].sampleLight(lightPass, sum / powerArray[modelIndex]);
-                this.state.setLightPosition(sampleIndex, position);
+                let positionAndFactor = this.models[modelIndex].sampleLight(lightPass, sum / powerArray[modelIndex]);
+                this.state.setLightPositionAndFactor(sampleIndex, positionAndFactor);
                 for (let i = 0; i < 6; i++) {
-                    let center = vec3.add(vec3.create(), position, cubeTarget[i]);
-                    let view = mat4.lookAt(mat4.create(), position, center, cubeUp[i]);
+                    let center = vec3.add(vec3.create(), positionAndFactor, cubeTarget[i]);
+                    let view = mat4.lookAt(mat4.create(), positionAndFactor, center, cubeUp[i]);
                     let viewProjection = mat4.mul(mat4.create(), this.shadowProjection, view);
                     this.state.setShadowViewProjection(sampleIndex, i, viewProjection);
                 }
             } else {
-                this.state.setLightPosition(sampleIndex, new Float32Array(4));
+                this.state.setLightPositionAndFactor(sampleIndex, new Float32Array(4));
                 for (let i = 0; i < 6; i++) {
                     this.state.setShadowViewProjection(sampleIndex, i, new Float32Array(16));
                 }

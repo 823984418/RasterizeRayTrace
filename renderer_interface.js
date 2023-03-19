@@ -61,11 +61,11 @@ var lightSampler: sampler;
 var shadowSampler: sampler;
 
 fn getShadow(light: i32, position: vec3<f32>) -> vec3<f32> {
-    let lightPosition = cameraInfo.lightArray[light];
-    if (lightPosition.w != 1) {
+    let lightPositionAndFactor = cameraInfo.lightArray[light];
+    if (lightPositionAndFactor.w == 0) {
         return vec3<f32>(0);
     }
-    let direction = position - lightPosition.xyz;
+    let direction = position - lightPositionAndFactor.xyz;
     let div = dot(direction, direction);
     let shadowDepth: f32 = textureSampleLevel(shadowTexture, shadowSampler, -direction, light, 0);
     
@@ -81,7 +81,7 @@ fn getShadow(light: i32, position: vec3<f32>) -> vec3<f32> {
             return vec3<f32>(0);
         }
     }
-    return textureSampleLevel(lightTexture, lightSampler, -direction, light, 0).rgb / div;
+    return textureSampleLevel(lightTexture, lightSampler, -direction, light, 0).rgb / div * lightPositionAndFactor.w * light_factor;
 }
 
 fn depthTest(pos: vec2<i32>, currentDepth: f32) -> bool {
@@ -189,11 +189,11 @@ var lightSampler: sampler;
 var shadowSampler: sampler;
 
 fn getShadow(light: i32, position: vec3<f32>) -> vec3<f32> {
-    let lightPosition = traceInfo.lightArray[light];
-    if (lightPosition.w != 1) {
+    let lightPositionAndFactor = traceInfo.lightArray[light];
+    if (lightPositionAndFactor.w == 0) {
         return vec3<f32>(0);
     }
-    let direction = position - lightPosition.xyz;
+    let direction = position - lightPositionAndFactor.xyz;
     let div = dot(direction, direction);
     let shadowDepth: f32 = textureSampleLevel(shadowTexture, shadowSampler, -direction, light, 0);
     
@@ -209,7 +209,7 @@ fn getShadow(light: i32, position: vec3<f32>) -> vec3<f32> {
             return vec3<f32>(0);
         }
     }
-    return textureSampleLevel(lightTexture, lightSampler, -direction, light, 0).rgb / div;
+    return textureSampleLevel(lightTexture, lightSampler, -direction, light, 0).rgb / div * lightPositionAndFactor.w * light_factor;
 }
 
 fn getHead(pos: vec2<i32>, depth: f32) -> u32 {

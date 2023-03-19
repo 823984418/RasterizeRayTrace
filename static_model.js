@@ -161,9 +161,9 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
             setFactor(pos, i, factor);
         }
         for (var i = 0; i < i32(lightSampleCount); i++) {
-            let lightPosition = cameraInfo.lightArray[i];
-            if (lightPosition.w == 1) {
-                let lc = dot(normalize(lightPosition.xyz - position), normal);
+            let lightPositionAndFactor = cameraInfo.lightArray[i];
+            if (lightPositionAndFactor.w != 0) {
+                let lc = dot(normalize(lightPositionAndFactor.xyz - position), normal);
                 if ((lc > 0) == (c > 0)) {
                     let light = getShadow(i, position);
                     color += light * modelInfo.diffuse.rgb * abs(lc) / PI / f32(lightSampleCount);
@@ -251,9 +251,9 @@ fn fragment_main(input: FragmentInput) {
         }
         var color = modelInfo.emit.rgb;
         for (var i = 0; i < i32(lightSampleCount); i++) {
-            let lightPosition = traceInfo.lightArray[i];
-            if (lightPosition.w == 1) {
-                let lc = dot(normalize(input.worldPosition.xyz - lightPosition.xyz), normal);
+            let lightPositionAndFactor = traceInfo.lightArray[i];
+            if (lightPositionAndFactor.w != 0) {
+                let lc = dot(normalize(input.worldPosition.xyz - lightPositionAndFactor.xyz), normal);
                 if ((lc > 0) == (c > 0)) {
                     let light = getShadow(i, input.worldPosition.xyz);
                     color += light * modelInfo.diffuse.rgb * abs(lc) / PI / f32(lightSampleCount);

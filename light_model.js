@@ -115,7 +115,7 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
     for (var i = 0; i < 6; i++) {
         let ss = zz[i] + pos.x * cross(zz[i], yy[i]) + pos.y * yy[i];
         let ns = normalize(ss);
-        output[i] = modelInfo.light.rgb * abs(dot(lightInfo.normalAndFactor.xyz, ns)) * lightInfo.normalAndFactor.w;
+        output[i] = modelInfo.light.rgb * abs(dot(lightInfo.normalAndFactor.xyz, ns)) / light_factor;
     }
     return FragmentOutput(vec4(output[0], 1), vec4(output[1], 1), vec4(output[2], 1), vec4(output[3], 1), vec4(output[4], 1), vec4(output[5], 1));
 }
@@ -238,9 +238,9 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
             setFactor(pos, i, factor);
         }
         for (var i = 0; i < i32(lightSampleCount); i++) {
-            let lightPosition = cameraInfo.lightArray[i];
-            if (lightPosition.w == 1) {
-                let lc = dot(normalize(lightPosition.xyz - position), normal);
+            let lightPositionAndFactor = cameraInfo.lightArray[i];
+            if (lightPositionAndFactor.w != 0) {
+                let lc = dot(normalize(lightPositionAndFactor.xyz - position), normal);
                 if ((lc > 0) == (c > 0)) {
                     let light = getShadow(i, position);
                     color += light * modelInfo.diffuse.rgb * abs(lc) / PI / f32(lightSampleCount);
@@ -328,9 +328,9 @@ fn fragment_main(input: FragmentInput) {
         }
         var color = modelInfo.emit.rgb;
         for (var i = 0; i < i32(lightSampleCount); i++) {
-            let lightPosition = traceInfo.lightArray[i];
-            if (lightPosition.w == 1) {
-                let lc = dot(normalize(input.worldPosition.xyz - lightPosition.xyz), normal);
+            let lightPositionAndFactor = traceInfo.lightArray[i];
+            if (lightPositionAndFactor.w != 0) {
+                let lc = dot(normalize(input.worldPosition.xyz - lightPositionAndFactor.xyz), normal);
                 if ((lc > 0) == (c > 0)) {
                     let light = getShadow(i, input.worldPosition.xyz);
                     color += light * modelInfo.diffuse.rgb * abs(lc) / PI / f32(lightSampleCount);
@@ -449,12 +449,12 @@ ${LIGHT_MODEL_TRACE_CODE}
                 module: lightShaderModule,
                 entryPoint: "fragment_main",
                 targets: [
-                    {format: "rgba32float"},
-                    {format: "rgba32float"},
-                    {format: "rgba32float"},
-                    {format: "rgba32float"},
-                    {format: "rgba32float"},
-                    {format: "rgba32float"},
+                    {format: "rgba8unorm"},
+                    {format: "rgba8unorm"},
+                    {format: "rgba8unorm"},
+                    {format: "rgba8unorm"},
+                    {format: "rgba8unorm"},
+                    {format: "rgba8unorm"},
                 ],
             },
         });
@@ -767,7 +767,7 @@ ${LIGHT_MODEL_TRACE_CODE}
         pass.setPipeline(this.lightPipeline);
         pass.draw(3);
         vec4.transformMat4(position, [...position, 1], this.modelInfo.model.buffer);
-        position[3] = 1;
+        position[3] = fa;
         return position;
     }
 

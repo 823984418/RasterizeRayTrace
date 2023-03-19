@@ -170,9 +170,9 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
             setFactor(pos, i, factor);
         }
         for (var i = 0; i < i32(lightSampleCount); i++) {
-            let lightPosition = cameraInfo.lightArray[i];
-            if (lightPosition.w == 1) {
-                let lightDirection = normalize(lightPosition.xyz - position);
+            let lightPositionAndFactor = cameraInfo.lightArray[i];
+            if (lightPositionAndFactor.w != 0) {
+                let lightDirection = normalize(lightPositionAndFactor.xyz - position);
                 let lc = dot(lightDirection, normal);
                 if ((lc > 0) == (c > 0)) {
                     if (dot(need - lightDirection, need - lightDirection) < maxAngle2) {
@@ -267,9 +267,9 @@ fn fragment_main(input: FragmentInput) {
         }
         var color = vec3<f32>(0);
         for (var i = 0; i < i32(lightSampleCount); i++) {
-            let lightPosition = traceInfo.lightArray[i];
-            if (lightPosition.w == 1) {
-                let nLightDirection = normalize(input.worldPosition.xyz - lightPosition.xyz);
+            let lightPositionAndFactor = traceInfo.lightArray[i];
+            if (lightPositionAndFactor.w != 0) {
+                let nLightDirection = normalize(input.worldPosition.xyz - lightPositionAndFactor.xyz);
                 let lc = dot(nLightDirection, normal);
                 if ((lc > 0) == (c > 0)) {
                     let deltaDir = need + nLightDirection;
