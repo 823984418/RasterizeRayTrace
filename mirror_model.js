@@ -426,7 +426,7 @@ ${MIRROR_MODEL_TRACE_CODE}
                 module: cameraShaderModule,
                 entryPoint: "fragment_main",
                 targets: [
-                    {format: "rgba32float"},
+                    {format: "rgba16float"},
                     {format: "rgba32float"},
                     {format: "rgba32float"},
                     {format: "rgba16float"},

@@ -582,7 +582,7 @@ ${RENDERER_DISPLAY_CODE}
             label: "colorTexture",
             size: [config.renderWidth, config.renderHeight, 2],
             dimension: "2d",
-            format: "rgba32float",
+            format: "rgba16float",
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.STORAGE_BINDING,
         });
         this.composeColorTexture = device.createTexture({
@@ -1017,7 +1017,7 @@ ${RENDERER_DISPLAY_CODE}
                 visibility: GPUShaderStage.FRAGMENT,
                 storageTexture: {
                     access: "write-only",
-                    format: "rgba32float",
+                    format: "rgba16float",
                     viewDimension: "2d",
                 },
             }, {

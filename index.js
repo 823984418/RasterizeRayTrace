@@ -209,7 +209,6 @@ console.log(renderer);
 window.renderer = renderer;
 
 
-
 canvas.addEventListener("mousemove", event => {
     x = event.offsetX / canvas.clientWidth - 0.5;
     y = event.offsetY / canvas.clientHeight - 0.5;

@@ -180,7 +180,7 @@ var positionTextureOutput: texture_storage_2d<rgba32float, write>;
 var colorTexture: texture_2d<f32>;
 
 @group(0) @binding(10)
-var colorTextureOutput: texture_storage_2d<rgba32float, write>;
+var colorTextureOutput: texture_storage_2d<rgba16float, write>;
 
 @group(0) @binding(11)
 var lightSampler: sampler;
