@@ -227,7 +227,7 @@ export class RendererConfig {
     shadowFarDistance = 1000;
     traceDepthBias = 0;
     shadowDepthBias = 0;
-    debug_clearCameraFactor = false;
+    debug_clearCameraFactor = true;
     debug_taa = true;
     taa_factor = 0.98;
     taa_maxDeltaZ = 0.01;
@@ -530,7 +530,7 @@ ${RENDERER_DISPLAY_CODE}
             label: "cameraFactorTexture",
             size: [config.renderWidth, config.renderHeight, config.traceCount],
             dimension: "2d",
-            format: "rgba32float",
+            format: "rgba16float",
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
         });
         this.tracePositionTexture = device.createTexture({
@@ -544,7 +544,7 @@ ${RENDERER_DISPLAY_CODE}
             label: "traceFactorTexture",
             size: [config.renderWidth, config.renderHeight, 2],
             dimension: "2d",
-            format: "rgba32float",
+            format: "rgba16float",
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
         });
         this.traceMaxDepthTexture = device.createTexture({
@@ -881,7 +881,7 @@ ${RENDERER_DISPLAY_CODE}
                 visibility: GPUShaderStage.FRAGMENT,
                 storageTexture: {
                     access: "write-only",
-                    format: "rgba32float",
+                    format: "rgba16float",
                     viewDimension: "2d-array",
                 },
             }, {
@@ -994,7 +994,7 @@ ${RENDERER_DISPLAY_CODE}
                 visibility: GPUShaderStage.FRAGMENT,
                 storageTexture: {
                     access: "write-only",
-                    format: "rgba32float",
+                    format: "rgba16float",
                     viewDimension: "2d",
                 }
             }, {

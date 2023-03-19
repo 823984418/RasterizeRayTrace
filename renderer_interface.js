@@ -49,7 +49,7 @@ var lightTexture: texture_cube_array<f32>;
 var shadowTexture: texture_depth_cube_array;
 
 @group(0) @binding(3)
-var factorTextureOutput: texture_storage_2d_array<rgba32float, write>;
+var factorTextureOutput: texture_storage_2d_array<rgba16float, write>;
 
 @group(0) @binding(4)
 var depth: texture_depth_2d;
@@ -171,7 +171,7 @@ var shadowTexture: texture_depth_cube_array;
 var factorTexture: texture_2d<f32>;
 
 @group(0) @binding(7)
-var factorTextureOutput: texture_storage_2d<rgba32float, write>;
+var factorTextureOutput: texture_storage_2d<rgba16float, write>;
 
 @group(0) @binding(8)
 var positionTextureOutput: texture_storage_2d<rgba32float, write>;
