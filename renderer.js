@@ -1701,18 +1701,12 @@ ${RENDERER_DISPLAY_CODE}
         let sample = array(this.config.lightSampleCount, _ => Math.random() * sum).map(e => sumArray.findIndex(v => v > e));
 
         sample.forEach((modelIndex, sampleIndex) => {
-            let commandEncoder = this.device.createCommandEncoder();
-            let lightPass = commandEncoder.beginRenderPass({
-                label: `light ${sampleIndex}`,
-                colorAttachments: array(6, cubeIndex => ({
+            if (modelIndex !== -1) {
+                let positionAndFactor = this.models[modelIndex].sampleLight(this.device, array(6, cubeIndex => ({
                     view: this.lightTexture2DViewArray[sampleIndex * 6 + cubeIndex],
                     loadOp: "clear",
                     storeOp: "store",
-                })),
-            });
-
-            if (modelIndex !== -1) {
-                let positionAndFactor = this.models[modelIndex].sampleLight(lightPass, sum / powerArray[modelIndex]);
+                })), sum / powerArray[modelIndex]);
                 this.state.setLightPositionAndFactor(sampleIndex, positionAndFactor);
                 for (let i = 0; i < 6; i++) {
                     let center = vec3.add(vec3.create(), positionAndFactor, cubeTarget[i]);
@@ -1726,8 +1720,6 @@ ${RENDERER_DISPLAY_CODE}
                     this.state.setShadowViewProjection(sampleIndex, i, new Float32Array(16));
                 }
             }
-            lightPass.end();
-            this.device.queue.submit([commandEncoder.finish()]);
         });
     }
 

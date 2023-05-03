@@ -26,11 +26,12 @@ export class Model {
     /**
      * 采样模型内的一个光源
      *
-     * @param {GPURenderPassEncoder} pass 渲染通道, 接收六个立方体方向的光照强度
+     * @param {GPUDevice} device
+     * @param {GPUTextureView[]} textures 六个立方体纹理面
      * @param {number} factor 光照系数
      * @return {number[]} 光源坐标
      */
-    sampleLight(pass, factor) {
+    sampleLight(device, textures, factor) {
         return [0, 0, 0, 0];
     }
 

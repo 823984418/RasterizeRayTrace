@@ -4,17 +4,7 @@ export let LIGHT_DEFINE = `// WGSL
 
 struct FragmentOutput {
     @location(0)
-    colorPX: vec4<f32>,
-    @location(1)
-    colorNX: vec4<f32>,
-    @location(2)
-    colorPY: vec4<f32>,
-    @location(3)
-    colorNY: vec4<f32>,
-    @location(4)
-    colorPZ: vec4<f32>,
-    @location(5)
-    colorNZ: vec4<f32>,
+    color: vec4<f32>,
 }
 
 `;

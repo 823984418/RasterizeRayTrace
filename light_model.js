@@ -1,5 +1,5 @@
 import {Model} from "./model.js";
-import {BufferMat4x4F32, BufferStruct, BufferVec4F32} from "./buffer_struct.js";
+import {BufferMat4x4F32, BufferStruct, BufferUint32, BufferVec4F32} from "./buffer_struct.js";
 import {
     CAMERA_DEFINE,
     CAMERA_DEPTH_DEFINE,
@@ -11,18 +11,21 @@ import {
 import {mat3, mat4, vec3, vec4} from "./gl-matrix/index.js";
 
 class LightInfo extends BufferStruct {
-    static WGSL = "struct LightInfo {normalAndFactor: vec4<f32>}";
+    static WGSL = "struct LightInfo {normalAndFactor: vec4<f32>, lightIndex: u32}";
 
     constructor() {
         super();
         this.setStruct([
             this.normalAndFactor,
+            this.lightIndex,
         ], 256);
     }
 
     buffer;
 
     normalAndFactor = new BufferVec4F32();
+
+    lightIndex = new BufferUint32();
 }
 
 class LightModelInfo extends BufferStruct {
@@ -111,13 +114,11 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
         vec3<f32>(0, -1, 0),
         vec3<f32>(0, -1, 0),
     );
-    var output = array<vec3<f32>, 6>();
-    for (var i = 0; i < 6; i++) {
-        let ss = zz[i] + pos.x * cross(zz[i], yy[i]) + pos.y * yy[i];
-        let ns = normalize(ss);
-        output[i] = modelInfo.light.rgb * abs(dot(lightInfo.normalAndFactor.xyz, ns)) / light_factor;
-    }
-    return FragmentOutput(vec4(output[0], 1), vec4(output[1], 1), vec4(output[2], 1), vec4(output[3], 1), vec4(output[4], 1), vec4(output[5], 1));
+    let i = lightInfo.lightIndex;
+    let ss = zz[i] + pos.x * cross(zz[i], yy[i]) + pos.y * yy[i];
+    let ns = normalize(ss);
+    let output = modelInfo.light.rgb * abs(dot(lightInfo.normalAndFactor.xyz, ns)) / light_factor;
+    return FragmentOutput(vec4<f32>(output, 1.0));
 }
 
 `;
@@ -451,11 +452,6 @@ ${LIGHT_MODEL_TRACE_CODE}
                 entryPoint: "fragment_main",
                 targets: [
                     {format: "rgba8unorm"},
-                    {format: "rgba8unorm"},
-                    {format: "rgba8unorm"},
-                    {format: "rgba8unorm"},
-                    {format: "rgba8unorm"},
-                    {format: "rgba8unorm"},
                 ],
             },
         });
@@ -724,7 +720,7 @@ ${LIGHT_MODEL_TRACE_CODE}
         return this.lightPower;
     }
 
-    sampleLight(pass, factor) {
+    sampleLight(device, textures, factor) {
         if (this.vertexCount === 0) {
             return [0, 0, 0, 0];
         }
@@ -761,11 +757,21 @@ ${LIGHT_MODEL_TRACE_CODE}
         vec3.normalize(normal, normalVec4);
         let fa = factor * this.areaSum;
         vec4.copy(this.lightInfo.normalAndFactor.buffer, [normal[0], normal[1], normal[2], fa]);
-        this.renderer.device.queue.writeBuffer(this.lightInfoBuffer, 0, this.lightInfo.buffer);
-        pass.setBindGroup(0, this.lightBindGroup0);
-        pass.setBindGroup(1, this.bindGroup1);
-        pass.setPipeline(this.lightPipeline);
-        pass.draw(3);
+        for (let i = 0;i < 6;i++) {
+            this.lightInfo.lightIndex.buffer[0] = i;
+            this.renderer.device.queue.writeBuffer(this.lightInfoBuffer, 0, this.lightInfo.buffer);
+            let commandEncoder = device.createCommandEncoder();
+            let lightPass = commandEncoder.beginRenderPass({
+                label: `light ${i}`,
+                colorAttachments: [textures[i]],
+            });
+            lightPass.setBindGroup(0, this.lightBindGroup0);
+            lightPass.setBindGroup(1, this.bindGroup1);
+            lightPass.setPipeline(this.lightPipeline);
+            lightPass.draw(3);
+            lightPass.end();
+            device.queue.submit([commandEncoder.finish()]);
+        }
         vec4.transformMat4(position, [...position, 1], this.modelInfo.model.buffer);
         position[3] = fa;
         return position;
