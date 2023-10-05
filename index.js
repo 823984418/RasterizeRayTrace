@@ -33,17 +33,11 @@ let device = await adapter.requestDevice({
     label: "renderer",
 });
 
-if (GPUCommandEncoder.prototype.clearBuffer == null || true) {
+if (GPUCommandEncoder.prototype.clearBuffer == null) {
     let zeroBuffer = device.createBuffer({
         size: 1024 * 1024 * 16,
         usage: GPUBufferUsage.COPY_SRC,
     });
-    let superCreateBuffer = GPUDevice.prototype.createBuffer;
-    GPUDevice.prototype.createBuffer = function (descriptor) {
-        let d = Object.create(descriptor);
-        d.usage |= GPUBufferUsage.COPY_DST;
-        return superCreateBuffer.call(this, d);
-    }
     GPUCommandEncoder.prototype.clearBuffer = function (buffer, offset, size) {
         offset ??= 0;
         size ??= buffer.size - offset;
