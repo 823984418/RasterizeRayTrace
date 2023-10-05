@@ -33,7 +33,7 @@ let device = await adapter.requestDevice({
     label: "renderer",
 });
 
-if (GPUCommandEncoder.prototype.clearBuffer == null) {
+if (GPUCommandEncoder.prototype.clearBuffer == null || true) {
     let zeroBuffer = device.createBuffer({
         size: 1024 * 1024 * 16,
         usage: GPUBufferUsage.COPY_SRC,
