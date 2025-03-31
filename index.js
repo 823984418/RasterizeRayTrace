@@ -8,6 +8,7 @@ import {loadObjLightModelWithoutNormal, loadObjStaticModelWithoutNormal} from ".
 window.addEventListener("error", event => {
     alert(`${event.message}
     ${event.error.stack}`);
+    console.error(event);
 });
 
 /**
