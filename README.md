@@ -1,8 +1,7 @@
 # 基于光栅化的光线追踪渲染器 WebGPU 实现
 
-注意：本技术使用 WebGPU 在 Chrome 108.0.5359.125 正式版上实现并维护
-需要浏览器使用 `--enable-unsafe-webgpu` 启动参数才能正常工作
-以下示例均在由 GTX1660Ti 为浏览器提供渲染能力的基础上，对于核显运行性能会大幅度下降
+注意：本技术使用 WebGPU 在 Chrome 正式版上实现并维护
+以下示例均在由独显为浏览器提供渲染能力的基础上，对于核显运行性能会大幅度下降
 
 # 示例
 * [cornellbox_box](https://823984418.github.io/RasterizeRayTrace/example/cornellbox_box.html) 使用十秒渲染来自GAMES101课堂的盒子模型，展示了基本的渲染能力

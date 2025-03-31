@@ -35,9 +35,7 @@ let device = await adapter.requestDevice({
     label: "renderer",
 });
 
-adapter.requestAdapterInfo().then(info => {
-    document.querySelector("#gpuInfo").innerText = `${info.vendor} : ${info.architecture} : ${info.description}`;
-});
+document.querySelector("#gpuInfo").innerText = `${adapter.info.vendor} : ${adapter.info.architecture} : ${adapter.info.description}`;
 
 let config = new RendererConfig();
 config.renderWidth = 512;
