@@ -85,7 +85,7 @@ fn getShadow(light: i32, position: vec3<f32>) -> vec3<f32> {
 
 fn depthTest(pos: vec2<i32>, currentDepth: f32) -> bool {
     let need = textureLoad(depth, pos, 0);
-    return currentDepth == need;
+    return abs(currentDepth - need) < 0.0000001;
 }
 
 fn setFactor(pos: vec2<i32>, index: i32, factor: vec3<f32>) {
