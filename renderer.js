@@ -524,7 +524,7 @@ ${RENDERER_DISPLAY_CODE}
             size: [config.renderWidth, config.renderHeight, 1],
             dimension: "2d",
             format: "rgba32float",
-            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
         });
         this.cameraFactorTexture = device.createTexture({
             label: "cameraFactorTexture",
@@ -1780,6 +1780,15 @@ ${RENDERER_DISPLAY_CODE}
                 }).end();
             });
         }
+
+        commandEncoder.beginRenderPass({
+            label: "clearCameraFactor",
+            colorAttachments: [{
+                view: this.cameraLastPositionTexture2DView,
+                loadOp: "clear",
+                storeOp: "store",
+            }]
+        }).end();
 
         let cameraPass = commandEncoder.beginRenderPass({
             label: "cameraPass",
