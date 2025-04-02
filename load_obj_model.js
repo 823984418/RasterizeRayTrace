@@ -1,6 +1,7 @@
 import {StaticModel} from "./static_model.js";
 import {getArea, getNormal} from "./kits.js";
 import {LightModel} from "./light_model.js";
+import {MirrorModel} from "./mirror_model.js";
 
 /**
  *
@@ -108,6 +109,14 @@ export function loadObjStaticModelWithoutNormal(renderer, code) {
     let obj = loadObj(code);
     let positions = getObjPositionBuffer(obj.vArray, obj.fArray);
     let model = new StaticModel(renderer);
+    model.setData(positions, getNormal(positions));
+    return model;
+}
+
+export function loadObjMirrorModelWithoutNormal(renderer, code) {
+    let obj = loadObj(code);
+    let positions = getObjPositionBuffer(obj.vArray, obj.fArray);
+    let model = new MirrorModel(renderer);
     model.setData(positions, getNormal(positions));
     return model;
 }

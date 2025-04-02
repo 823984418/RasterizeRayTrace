@@ -151,7 +151,7 @@ fn fragment_main(input: FragmentInput) -> FragmentOutput {
     // P -> T
     let need = 2 * c * normal - look;
     let maxAngle2 = modelInfo.mirror.a;
-    let mirror = modelInfo.mirror.rgb;
+    let mirror = modelInfo.mirror.rgb / maxAngle2 / PI;
     let pos = vec2<i32>(input.position.xy);
     var appendColor: vec3<f32> = vec3(0);
     var color = vec3<f32>(0);
